@@ -2129,13 +2129,22 @@ function computeNextYearEligibility(owner){
   return roster.map(p => {
     const asKeeper = keeperMap[p.player];
     if(asKeeper){
-      const eligible = asKeeper.year < 3;
+      const nextRound = asKeeper.round - 1;
+      const underCap = asKeeper.year < 3;
+      const aboveFloor = nextRound >= 3; // keeping again can't drop the cost into rounds 1-2
+      const eligible = underCap && aboveFloor;
+      let reason = "";
+      if(!eligible){
+        reason = !underCap
+          ? "Max 3 consecutive years reached"
+          : "Next year's cost would drop to round " + nextRound + " (rounds 1-3 restriction)";
+      }
       return {
         player: p.player, pos: p.pos,
         acquired: `Kept (Rd ${asKeeper.round} this year, ${ordYear(asKeeper.year)} yr)`,
-        nextRound: eligible ? asKeeper.round - 1 : null,
+        nextRound: eligible ? nextRound : null,
         eligible,
-        reason: eligible ? "" : "Max 3 consecutive years reached",
+        reason,
       };
     }
     if(p.draftpos === "FA"){
