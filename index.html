@@ -1,0 +1,1949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AAHomiez — League Portal</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap');
+
+:root{
+  --field:#00193A;
+  --field-line:#0E2E52;
+  --panel:#0A2A4D;
+  --panel-2:#0F3661;
+  --ink:#EDEDE4;
+  --ink-dim:#9FB2C9;
+  --gold:#F2C230;
+  --win:#4C8C5A;
+  --loss:#B4483A;
+  --hair:#1B4470;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--field);
+  color:var(--ink);
+  font-family:'IBM Plex Sans',sans-serif;
+  min-height:100vh;
+}
+.yard-lines{
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background-image: repeating-linear-gradient(90deg, transparent, transparent 79px, var(--field-line) 79px, var(--field-line) 80px);
+  opacity:.5;
+}
+.wrap{position:relative; z-index:1; max-width:1180px; margin:0 auto; padding:0 24px 80px;}
+
+header{padding:36px 0 20px; border-bottom:1px solid var(--hair);}
+.eyebrow-row{display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap;}
+h1{
+  font-family:'Oswald',sans-serif; font-weight:700; text-transform:uppercase;
+  letter-spacing:.5px; font-size:42px; margin:0; color:var(--ink);
+}
+h1 span{color:var(--gold);}
+.league-meta{font-size:13px; color:var(--ink-dim); font-family:'IBM Plex Mono',monospace;}
+.season-picker{display:flex; align-items:center; gap:10px; margin-top:14px;}
+.season-picker select{
+  background:var(--panel); border:1px solid var(--hair); color:var(--ink);
+  font-family:'IBM Plex Mono',monospace; font-size:13px; padding:7px 10px; border-radius:3px;
+}
+
+nav{display:flex; gap:2px; margin-top:22px; flex-wrap:wrap;}
+nav button{
+  background:none; border:none; color:var(--ink-dim); font-family:'Oswald',sans-serif;
+  font-size:15px; text-transform:uppercase; letter-spacing:.4px; padding:10px 18px;
+  cursor:pointer; border-bottom:3px solid transparent; transition:color .15s, border-color .15s;
+}
+nav button:hover{color:var(--ink);}
+nav button.active{color:var(--gold); border-bottom-color:var(--gold);}
+
+main{padding-top:28px;}
+.panel{background:var(--panel); border:1px solid var(--hair); border-radius:4px; padding:22px; margin-bottom:20px;}
+.standings-grid{display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start;}
+@media (max-width: 820px){ .standings-grid{grid-template-columns:1fr;} }
+.section-h{font-family:'Oswald',sans-serif; text-transform:uppercase; font-size:16px; margin:0 0 10px; letter-spacing:.3px;}
+.keepers-grid{display:grid; grid-template-columns:1fr 1.3fr; gap:24px; align-items:start;}
+@media (max-width: 820px){ .keepers-grid{grid-template-columns:1fr;} }
+.ineligible-row td{opacity:.55;}
+.panel h2{font-family:'Oswald',sans-serif; text-transform:uppercase; font-size:20px; margin:0 0 4px; letter-spacing:.3px;}
+.panel .sub{color:var(--ink-dim); font-size:13px; margin:0 0 18px;}
+
+table{width:100%; border-collapse:collapse; font-size:14px;}
+th{
+  text-align:left; font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase;
+  letter-spacing:.06em; color:var(--ink-dim); font-weight:500; padding:8px 10px; border-bottom:1px solid var(--hair);
+}
+td{padding:10px; border-bottom:1px solid var(--field-line);}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(255,255,255,.02);}
+td.num, th.num{text-align:right; font-family:'IBM Plex Mono',monospace;}
+.rank{color:var(--ink-dim); font-family:'IBM Plex Mono',monospace; width:28px;}
+.team-cell{display:flex; align-items:center; gap:10px;}
+.team-name{font-weight:600;}
+.team-handle{color:var(--ink-dim); font-size:12px; font-family:'IBM Plex Mono',monospace;}
+.win-pill, .loss-pill{
+  display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:11px; padding:2px 7px; border-radius:2px;
+}
+.win-pill{background:rgba(76,140,90,.18); color:var(--win);}
+.loss-pill{background:rgba(180,72,58,.18); color:var(--loss);}
+
+.matchup-row{display:grid; grid-template-columns:1fr 70px 20px 70px 1fr; align-items:center; padding:14px 10px; border-bottom:1px solid var(--field-line); gap:8px;}
+.matchup-row:last-child{border-bottom:none;}
+.mt-team{font-weight:600; font-size:14px;}
+.mt-team.right{text-align:right;}
+.mt-score{font-family:'Oswald',sans-serif; font-size:22px; text-align:center;}
+.mt-score.win{color:var(--gold);}
+.mt-vs{text-align:center; color:var(--ink-dim); font-size:11px; font-family:'IBM Plex Mono',monospace;}
+
+.week-picker{display:flex; gap:4px; flex-wrap:wrap; margin-bottom:18px;}
+.week-picker button{
+  background:var(--panel-2); border:1px solid var(--hair); color:var(--ink-dim);
+  font-family:'IBM Plex Mono',monospace; font-size:12px; padding:5px 10px; border-radius:2px; cursor:pointer;
+}
+.week-picker button.active{background:var(--gold); color:#1a1509; border-color:var(--gold); font-weight:600;}
+
+.trophy-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:14px;}
+.trophy-card{background:var(--panel-2); border:1px solid var(--hair); border-radius:4px; padding:16px;}
+.trophy-label{font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase; color:var(--gold); letter-spacing:.05em; margin-bottom:6px;}
+.trophy-value{font-family:'Oswald',sans-serif; font-size:24px; margin-bottom:2px;}
+.trophy-sub{color:var(--ink-dim); font-size:12px;}
+
+.history-season{display:flex; align-items:center; gap:16px; padding:12px 10px; border-bottom:1px solid var(--field-line);}
+.history-season:last-child{border-bottom:none;}
+.history-year{font-family:'Oswald',sans-serif; font-size:20px; width:70px; color:var(--gold);}
+.history-champ{flex:1;}
+.history-champ .label{font-size:11px; color:var(--ink-dim); font-family:'IBM Plex Mono',monospace; text-transform:uppercase;}
+.history-champ .val{font-weight:600;}
+
+.team-block{margin-bottom:26px;}
+.team-block h3{
+  font-family:'Oswald',sans-serif; text-transform:uppercase; font-size:16px; margin:0 0 8px;
+  padding-bottom:8px; border-bottom:1px solid var(--hair); display:flex; justify-content:space-between; align-items:baseline;
+}
+.team-block h3 .handle{font-size:12px; color:var(--ink-dim); font-family:'IBM Plex Mono',monospace; text-transform:none;}
+.year-tag{font-family:'IBM Plex Mono',monospace; font-size:11px; padding:2px 7px; border-radius:2px; background:rgba(242,194,48,.15); color:var(--gold);}
+.year-tag.first{background:rgba(76,140,90,.15); color:var(--win);}
+.year-tag.maxed{background:rgba(180,72,58,.18); color:var(--loss);}
+
+.state-msg{color:var(--ink-dim); font-size:14px; padding:30px 0; text-align:center; font-family:'IBM Plex Mono',monospace;}
+.state-msg.error{color:var(--loss);}
+.spinner{
+  display:inline-block; width:14px; height:14px; border:2px solid var(--hair); border-top-color:var(--gold);
+  border-radius:50%; animation:spin .7s linear infinite; margin-right:8px; vertical-align:-2px;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+footer{color:var(--ink-dim); font-size:12px; text-align:center; padding:30px 0 10px; font-family:'IBM Plex Mono',monospace;}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="yard-lines"></div>
+<div class="wrap">
+  <header>
+    <div class="eyebrow-row">
+      <h1 id="leagueTitle">AA<span>Ho<img src="block-m.png" alt="M" style="height:0.85em; margin:0 1px;">iez</span></h1>
+    </div>
+    <nav id="tabNav">
+      <button data-tab="standings" class="active">Standings</button>
+      <button data-tab="matchups">Matchups</button>
+      <button data-tab="trends">Trends</button>
+      <button data-tab="teams">Teams</button>
+      <button data-tab="history">History</button>
+      <button data-tab="achievements">Achievements</button>
+      <button data-tab="keepers">Keepers</button>
+    </nav>
+  </header>
+  <main id="main">
+    <div class="state-msg"><span class="spinner"></span>Loading league…</div>
+  </main>
+  <footer>Live data from the Sleeper API. Keeper history compiled from AAHomiez league records.</footer>
+</div>
+
+<script>
+const STARTING_LEAGUE_ID = "1389371848721993728";
+const API = "https://api.sleeper.app/v1";
+
+// ---- Hardcoded keeper history (from league keeper tracking, through 2025-26 season) ----
+const OWNER_NAMES = {
+  jdcass33:"Jordan Cassidy", bleagle24:"Brandon Eagle", vgupt:"Vick Gupta",
+  jmrobe:"JR Roberts", chadillac004:"Chad Snodgrass", matthew3400:"Matt Schmidt",
+  rklorch225:"Ryan Lorch", ffchappyonships:"Paul Chappus", drvoorhees:"Dan Voorhees",
+  norsworthyryan:"Ryan Norsworthy", jmonk20:"Jeff Lunder", feman99:"Felix Manan"
+};
+const KEEPERS_2025 = [
+  {owner:"jdcass33",player:"Jaxon Smith-Njigba",pos:"WR",round:7,year:1},
+  {owner:"jdcass33",player:"Sam LaPorta",pos:"TE",round:8,year:2},
+  {owner:"jdcass33",player:"Jordan Mason",pos:"RB",round:9,year:1},
+  {owner:"bleagle24",player:"Puka Nacua",pos:"WR",round:7,year:2},
+  {owner:"bleagle24",player:"Bucky Irving",pos:"RB",round:9,year:1},
+  {owner:"vgupt",player:"Brian Thomas",pos:"WR",round:7,year:1},
+  {owner:"vgupt",player:"Trey McBride",pos:"TE",round:8,year:2},
+  {owner:"vgupt",player:"Brian Robinson",pos:"RB",round:11,year:1},
+  {owner:"jmrobe",player:"Rome Odunze",pos:"WR",round:5,year:1},
+  {owner:"jmrobe",player:"Jameson Williams",pos:"WR",round:6,year:1},
+  {owner:"jmrobe",player:"Jared Goff",pos:"QB",round:10,year:2},
+  {owner:"chadillac004",player:"Jayden Daniels",pos:"QB",round:6,year:1},
+  {owner:"chadillac004",player:"Isiah Pacheco",pos:"RB",round:7,year:3},
+  {owner:"chadillac004",player:"Kyren Williams",pos:"RB",round:8,year:2},
+  {owner:"matthew3400",player:"Tee Higgins",pos:"WR",round:3,year:1},
+  {owner:"matthew3400",player:"Chuba Hubbard",pos:"RB",round:13,year:2},
+  {owner:"rklorch225",player:"Xavier Worthy",pos:"WR",round:5,year:1},
+  {owner:"rklorch225",player:"Nico Collins",pos:"WR",round:6,year:2},
+  {owner:"rklorch225",player:"Brandon Aubrey",pos:"K",round:13,year:1},
+  {owner:"ffchappyonships",player:"De'Von Achane",pos:"RB",round:10,year:2},
+  {owner:"ffchappyonships",player:"Garrett Wilson",pos:"WR",round:11,year:3},
+  {owner:"ffchappyonships",player:"T.J. Hockenson",pos:"TE",round:12,year:1},
+  {owner:"drvoorhees",player:"George Kittle",pos:"TE",round:4,year:1},
+  {owner:"drvoorhees",player:"Brock Bowers",pos:"TE",round:6,year:1},
+  {owner:"drvoorhees",player:"Bo Nix",pos:"QB",round:9,year:1},
+  {owner:"norsworthyryan",player:"Jonathan Taylor",pos:"RB",round:3,year:2},
+  {owner:"norsworthyryan",player:"Jayden Reed",pos:"WR",round:8,year:2},
+  {owner:"norsworthyryan",player:"Justin Herbert",pos:"QB",round:10,year:1},
+  {owner:"jmonk20",player:"Ladd McConkey",pos:"WR",round:7,year:1},
+  {owner:"jmonk20",player:"Joshua Palmer",pos:"WR",round:8,year:1},
+  {owner:"jmonk20",player:"Jerry Jeudy",pos:"WR",round:12,year:1},
+  {owner:"feman99",player:"Chase Brown",pos:"RB",round:7,year:1},
+  {owner:"feman99",player:"Drake Maye",pos:"QB",round:8,year:1},
+  {owner:"feman99",player:"Tucker Kraft",pos:"TE",round:9,year:1},
+];
+
+// ---- Yahoo era history (2017-2023, pre-Sleeper; standings + champions) ----
+const YAHOO_SEASONS = [
+  {
+    "season": "2017",
+    "league_id": "921129",
+    "champion": {
+      "team": "Demi Moore (Ghost)",
+      "manager": "Chad"
+    },
+    "standings": [
+      {
+        "rank": 1,
+        "team": "Demi Moore (Ghost)",
+        "w": 10,
+        "l": 3,
+        "t": 0,
+        "pf": 1367.76,
+        "pa": 1152.44
+      },
+      {
+        "rank": 2,
+        "team": "norsworthy's Team",
+        "w": 7,
+        "l": 6,
+        "t": 0,
+        "pf": 1287.9,
+        "pa": 1365.54
+      },
+      {
+        "rank": 3,
+        "team": "Graham Crackaz",
+        "w": 7,
+        "l": 6,
+        "t": 0,
+        "pf": 1300.44,
+        "pa": 1241.84
+      },
+      {
+        "rank": 4,
+        "team": "Paul's Super Team",
+        "w": 8,
+        "l": 5,
+        "t": 0,
+        "pf": 1492.86,
+        "pa": 1330.74
+      },
+      {
+        "rank": 5,
+        "team": "Vikas's Team",
+        "w": 8,
+        "l": 5,
+        "t": 0,
+        "pf": 1363.38,
+        "pa": 1288.08
+      },
+      {
+        "rank": 6,
+        "team": "5 Rings",
+        "w": 7,
+        "l": 6,
+        "t": 0,
+        "pf": 1435.12,
+        "pa": 1281.18
+      },
+      {
+        "rank": 7,
+        "team": "Ryan's Team",
+        "w": 4,
+        "l": 9,
+        "t": 0,
+        "pf": 1135.22,
+        "pa": 1219.2
+      },
+      {
+        "rank": 8,
+        "team": "Jonathan's Nice Team",
+        "w": 7,
+        "l": 6,
+        "t": 0,
+        "pf": 1246.2,
+        "pa": 1283.08
+      },
+      {
+        "rank": 9,
+        "team": "Matt's Team",
+        "w": 4,
+        "l": 9,
+        "t": 0,
+        "pf": 1127.34,
+        "pa": 1281.44
+      },
+      {
+        "rank": 10,
+        "team": "I Kick Field Posts",
+        "w": 3,
+        "l": 10,
+        "t": 0,
+        "pf": 1029.42,
+        "pa": 1342.1
+      }
+    ]
+  },
+  {
+    "season": "2018",
+    "league_id": "675059",
+    "champion": {
+      "team": "Go DJ Dat's My DJ",
+      "manager": "Jordan"
+    },
+    "standings": [
+      {
+        "rank": 1,
+        "team": "Go DJ Dat's My DJ",
+        "w": 8,
+        "l": 5,
+        "t": 0,
+        "pf": 1376.6,
+        "pa": 1299.0
+      },
+      {
+        "rank": 2,
+        "team": "Paul's Super Team",
+        "w": 11,
+        "l": 2,
+        "t": 0,
+        "pf": 1735.86,
+        "pa": 1367.24
+      },
+      {
+        "rank": 3,
+        "team": "Vikas's Team",
+        "w": 8,
+        "l": 5,
+        "t": 0,
+        "pf": 1360.02,
+        "pa": 1405.6
+      },
+      {
+        "rank": 4,
+        "team": "I Kick Field Posts",
+        "w": 8,
+        "l": 5,
+        "t": 0,
+        "pf": 1563.76,
+        "pa": 1484.1
+      },
+      {
+        "rank": 5,
+        "team": "Jonathan's Nice Team",
+        "w": 6,
+        "l": 7,
+        "t": 0,
+        "pf": 1438.2,
+        "pa": 1414.48
+      },
+      {
+        "rank": 6,
+        "team": "5 Rings",
+        "w": 7,
+        "l": 6,
+        "t": 0,
+        "pf": 1458.44,
+        "pa": 1412.0
+      },
+      {
+        "rank": 7,
+        "team": "Ryan's Team",
+        "w": 6,
+        "l": 7,
+        "t": 0,
+        "pf": 1323.16,
+        "pa": 1324.94
+      },
+      {
+        "rank": 8,
+        "team": "Felix's Fine Team",
+        "w": 6,
+        "l": 7,
+        "t": 0,
+        "pf": 1424.48,
+        "pa": 1359.62
+      },
+      {
+        "rank": 9,
+        "team": "Whispering Eye",
+        "w": 5,
+        "l": 8,
+        "t": 0,
+        "pf": 1441.82,
+        "pa": 1582.56
+      },
+      {
+        "rank": 10,
+        "team": "norsworthy's Team",
+        "w": 5,
+        "l": 8,
+        "t": 0,
+        "pf": 1403.16,
+        "pa": 1497.92
+      },
+      {
+        "rank": 11,
+        "team": "Demi Moore (Ghost)",
+        "w": 5,
+        "l": 8,
+        "t": 0,
+        "pf": 1298.66,
+        "pa": 1447.34
+      },
+      {
+        "rank": 12,
+        "team": "Matt's Team",
+        "w": 3,
+        "l": 10,
+        "t": 0,
+        "pf": 1229.42,
+        "pa": 1458.78
+      }
+    ]
+  },
+  {
+    "season": "2019",
+    "league_id": "838485",
+    "champion": {
+      "team": "Felix's Fine Team",
+      "manager": "Felix"
+    },
+    "standings": [
+      {
+        "rank": 1,
+        "team": "Felix's Fine Team",
+        "w": 8,
+        "l": 5,
+        "t": 0,
+        "pf": 1263.76,
+        "pa": 1309.9
+      },
+      {
+        "rank": 2,
+        "team": "Go DJ Dat's My DJ",
+        "w": 9,
+        "l": 4,
+        "t": 0,
+        "pf": 1458.78,
+        "pa": 1332.22
+      },
+      {
+        "rank": 3,
+        "team": "Jonathan's Nice Team",
+        "w": 10,
+        "l": 3,
+        "t": 0,
+        "pf": 1627.36,
+        "pa": 1353.56
+      },
+      {
+        "rank": 4,
+        "team": "Whispering Eye",
+        "w": 9,
+        "l": 4,
+        "t": 0,
+        "pf": 1460.26,
+        "pa": 1366.72
+      },
+      {
+        "rank": 5,
+        "team": "Paul's Super Team",
+        "w": 7,
+        "l": 6,
+        "t": 0,
+        "pf": 1310.88,
+        "pa": 1279.32
+      },
+      {
+        "rank": 6,
+        "team": "Vikas's Team",
+        "w": 8,
+        "l": 5,
+        "t": 0,
+        "pf": 1435.28,
+        "pa": 1220.0
+      },
+      {
+        "rank": 7,
+        "team": "I Kick Field Posts",
+        "w": 7,
+        "l": 6,
+        "t": 0,
+        "pf": 1224.12,
+        "pa": 1320.66
+      },
+      {
+        "rank": 8,
+        "team": "Miami Dolphins",
+        "w": 1,
+        "l": 12,
+        "t": 0,
+        "pf": 1218.72,
+        "pa": 1518.32
+      },
+      {
+        "rank": 9,
+        "team": "Cincinnati Bengals",
+        "w": 3,
+        "l": 10,
+        "t": 0,
+        "pf": 1170.98,
+        "pa": 1297.6
+      },
+      {
+        "rank": 10,
+        "team": "Antonio B's Boys",
+        "w": 6,
+        "l": 7,
+        "t": 0,
+        "pf": 1352.62,
+        "pa": 1375.94
+      },
+      {
+        "rank": 11,
+        "team": "norsworthy's Team",
+        "w": 6,
+        "l": 7,
+        "t": 0,
+        "pf": 1347.36,
+        "pa": 1428.64
+      },
+      {
+        "rank": 12,
+        "team": "Ryan's Team",
+        "w": 4,
+        "l": 9,
+        "t": 0,
+        "pf": 1387.36,
+        "pa": 1454.6
+      }
+    ]
+  },
+  {
+    "season": "2020",
+    "league_id": "618828",
+    "champion": {
+      "team": "Vikas's Team",
+      "manager": "Vikas"
+    },
+    "standings": [
+      {
+        "rank": 1,
+        "team": "Vikas's Team",
+        "w": 9,
+        "l": 4,
+        "t": 0,
+        "pf": 1439.1,
+        "pa": 1294.94
+      },
+      {
+        "rank": 2,
+        "team": "Paul's Super Team",
+        "w": 13,
+        "l": 0,
+        "t": 0,
+        "pf": 1524.74,
+        "pa": 1281.66
+      },
+      {
+        "rank": 3,
+        "team": "norsworthy's Team",
+        "w": 8,
+        "l": 5,
+        "t": 0,
+        "pf": 1468.6,
+        "pa": 1370.72
+      },
+      {
+        "rank": 4,
+        "team": "Felix's Fine Team",
+        "w": 8,
+        "l": 5,
+        "t": 0,
+        "pf": 1308.14,
+        "pa": 1302.02
+      },
+      {
+        "rank": 5,
+        "team": "Whispering Eye",
+        "w": 7,
+        "l": 6,
+        "t": 0,
+        "pf": 1330.62,
+        "pa": 1290.24
+      },
+      {
+        "rank": 6,
+        "team": "Hold Muh DK",
+        "w": 7,
+        "l": 6,
+        "t": 0,
+        "pf": 1406.12,
+        "pa": 1415.82
+      },
+      {
+        "rank": 7,
+        "team": "Cincinnati Bengals",
+        "w": 1,
+        "l": 12,
+        "t": 0,
+        "pf": 1235.2,
+        "pa": 1456.66
+      },
+      {
+        "rank": 8,
+        "team": "Miami Dolphins",
+        "w": 4,
+        "l": 9,
+        "t": 0,
+        "pf": 1416.44,
+        "pa": 1492.36
+      },
+      {
+        "rank": 9,
+        "team": "I Kick Field Posts",
+        "w": 6,
+        "l": 7,
+        "t": 0,
+        "pf": 1312.4,
+        "pa": 1353.4
+      },
+      {
+        "rank": 10,
+        "team": "Jonathan's Nice Team",
+        "w": 7,
+        "l": 6,
+        "t": 0,
+        "pf": 1310.78,
+        "pa": 1226.32
+      },
+      {
+        "rank": 11,
+        "team": "Ryan's Team",
+        "w": 5,
+        "l": 8,
+        "t": 0,
+        "pf": 1368.86,
+        "pa": 1422.2
+      },
+      {
+        "rank": 12,
+        "team": "Antonio B's Boys",
+        "w": 3,
+        "l": 10,
+        "t": 0,
+        "pf": 1135.98,
+        "pa": 1350.64
+      }
+    ]
+  },
+  {
+    "season": "2021",
+    "league_id": "200888",
+    "champion": {
+      "team": "Najee Tweakin'",
+      "manager": "Brandon"
+    },
+    "standings": [
+      {
+        "rank": 1,
+        "team": "Najee Tweakin'",
+        "w": 9,
+        "l": 5,
+        "t": 0,
+        "pf": 1554.36,
+        "pa": 1467.28
+      },
+      {
+        "rank": 2,
+        "team": "Norsworthy",
+        "w": 8,
+        "l": 6,
+        "t": 0,
+        "pf": 1854.22,
+        "pa": 1456.7
+      },
+      {
+        "rank": 3,
+        "team": "Vikas's Team",
+        "w": 8,
+        "l": 6,
+        "t": 0,
+        "pf": 1681.82,
+        "pa": 1528.38
+      },
+      {
+        "rank": 4,
+        "team": "Fe Man",
+        "w": 9,
+        "l": 5,
+        "t": 0,
+        "pf": 1572.88,
+        "pa": 1400.8
+      },
+      {
+        "rank": 5,
+        "team": "Hold Muh DK",
+        "w": 9,
+        "l": 5,
+        "t": 0,
+        "pf": 1480.28,
+        "pa": 1466.78
+      },
+      {
+        "rank": 6,
+        "team": "I Kick Field Posts",
+        "w": 9,
+        "l": 5,
+        "t": 0,
+        "pf": 1458.2,
+        "pa": 1321.26
+      },
+      {
+        "rank": 7,
+        "team": "Whispering Eye",
+        "w": 8,
+        "l": 6,
+        "t": 0,
+        "pf": 1510.38,
+        "pa": 1464.6
+      },
+      {
+        "rank": 8,
+        "team": "Ryan's Team",
+        "w": 7,
+        "l": 7,
+        "t": 0,
+        "pf": 1420.1,
+        "pa": 1451.14
+      },
+      {
+        "rank": 9,
+        "team": "Antonio B's Boys",
+        "w": 4,
+        "l": 10,
+        "t": 0,
+        "pf": 1057.48,
+        "pa": 1507.8
+      },
+      {
+        "rank": 10,
+        "team": "Paul's Super Team",
+        "w": 7,
+        "l": 7,
+        "t": 0,
+        "pf": 1460.3,
+        "pa": 1422.76
+      },
+      {
+        "rank": 11,
+        "team": "Long Chubb",
+        "w": 4,
+        "l": 10,
+        "t": 0,
+        "pf": 1239.72,
+        "pa": 1552.12
+      },
+      {
+        "rank": 12,
+        "team": "Demi Moore",
+        "w": 2,
+        "l": 12,
+        "t": 0,
+        "pf": 1286.28,
+        "pa": 1536.4
+      }
+    ]
+  },
+  {
+    "season": "2022",
+    "league_id": "178569",
+    "champion": {
+      "team": "Norsworthy",
+      "manager": "norsworthy"
+    },
+    "standings": [
+      {
+        "rank": 1,
+        "team": "Norsworthy",
+        "w": 9,
+        "l": 5,
+        "t": 0,
+        "pf": 1619.26,
+        "pa": 1425.82
+      },
+      {
+        "rank": 2,
+        "team": "Vikas's Team",
+        "w": 8,
+        "l": 6,
+        "t": 0,
+        "pf": 1453.34,
+        "pa": 1400.66
+      },
+      {
+        "rank": 3,
+        "team": "Najee Tweakin'",
+        "w": 8,
+        "l": 6,
+        "t": 0,
+        "pf": 1447.2,
+        "pa": 1457.38
+      },
+      {
+        "rank": 4,
+        "team": "Whispering Eye",
+        "w": 11,
+        "l": 3,
+        "t": 0,
+        "pf": 1603.02,
+        "pa": 1298.8
+      },
+      {
+        "rank": 5,
+        "team": "Demi Moore",
+        "w": 8,
+        "l": 6,
+        "t": 0,
+        "pf": 1502.34,
+        "pa": 1427.3
+      },
+      {
+        "rank": 6,
+        "team": "I Kick Field Posts",
+        "w": 9,
+        "l": 5,
+        "t": 0,
+        "pf": 1498.98,
+        "pa": 1357.16
+      },
+      {
+        "rank": 7,
+        "team": "Fe Man",
+        "w": 6,
+        "l": 8,
+        "t": 0,
+        "pf": 1347.7,
+        "pa": 1388.7
+      },
+      {
+        "rank": 8,
+        "team": "Hold Muh DK",
+        "w": 5,
+        "l": 9,
+        "t": 0,
+        "pf": 1340.72,
+        "pa": 1516.4
+      },
+      {
+        "rank": 9,
+        "team": "Ryan's Team",
+        "w": 5,
+        "l": 9,
+        "t": 0,
+        "pf": 1456.04,
+        "pa": 1531.94
+      },
+      {
+        "rank": 10,
+        "team": "Paul's Super Team",
+        "w": 6,
+        "l": 8,
+        "t": 0,
+        "pf": 1435.44,
+        "pa": 1499.8
+      },
+      {
+        "rank": 11,
+        "team": "Antonio B's Boys",
+        "w": 5,
+        "l": 9,
+        "t": 0,
+        "pf": 1225.12,
+        "pa": 1338.18
+      },
+      {
+        "rank": 12,
+        "team": "Lamarkanda Forever",
+        "w": 4,
+        "l": 10,
+        "t": 0,
+        "pf": 1238.78,
+        "pa": 1525.8
+      }
+    ]
+  },
+  {
+    "season": "2023",
+    "league_id": "736850",
+    "champion": {
+      "team": "Vikas's Team",
+      "manager": "Vikas"
+    },
+    "standings": [
+      {
+        "rank": 1,
+        "team": "Vikas's Team",
+        "w": 8,
+        "l": 6,
+        "t": 0,
+        "pf": 1472.22,
+        "pa": 1372.18
+      },
+      {
+        "rank": 2,
+        "team": "Puka & Rally",
+        "w": 10,
+        "l": 4,
+        "t": 0,
+        "pf": 1505.06,
+        "pa": 1393.18
+      },
+      {
+        "rank": 3,
+        "team": "Hold Muh DK",
+        "w": 8,
+        "l": 6,
+        "t": 0,
+        "pf": 1497.3,
+        "pa": 1451.36
+      },
+      {
+        "rank": 4,
+        "team": "Demi Moore",
+        "w": 9,
+        "l": 5,
+        "t": 0,
+        "pf": 1553.64,
+        "pa": 1430.4
+      },
+      {
+        "rank": 5,
+        "team": "Lamarkanda Forever",
+        "w": 9,
+        "l": 5,
+        "t": 0,
+        "pf": 1481.48,
+        "pa": 1409.8
+      },
+      {
+        "rank": 6,
+        "team": "Whispering Eye",
+        "w": 8,
+        "l": 6,
+        "t": 0,
+        "pf": 1583.24,
+        "pa": 1382.8
+      },
+      {
+        "rank": 7,
+        "team": "Run-By Fruiting",
+        "w": 6,
+        "l": 8,
+        "t": 0,
+        "pf": 1438.82,
+        "pa": 1451.64
+      },
+      {
+        "rank": 8,
+        "team": "Norsworthy",
+        "w": 5,
+        "l": 9,
+        "t": 0,
+        "pf": 1390.76,
+        "pa": 1535.66
+      },
+      {
+        "rank": 9,
+        "team": "Running Up That Hill",
+        "w": 2,
+        "l": 12,
+        "t": 0,
+        "pf": 1245.06,
+        "pa": 1539.54
+      },
+      {
+        "rank": 10,
+        "team": "The Playoffs Powered By Dell",
+        "w": 8,
+        "l": 6,
+        "t": 0,
+        "pf": 1319.44,
+        "pa": 1363.22
+      },
+      {
+        "rank": 11,
+        "team": "Paul's Super Team",
+        "w": 6,
+        "l": 8,
+        "t": 0,
+        "pf": 1350.28,
+        "pa": 1354.96
+      },
+      {
+        "rank": 12,
+        "team": "Antonio B's Boys",
+        "w": 5,
+        "l": 9,
+        "t": 0,
+        "pf": 1222.62,
+        "pa": 1375.18
+      }
+    ]
+  }
+];
+
+// Manager first-name -> current Sleeper username, used only for merging
+// explicitly-labeled Yahoo champions into the all-time championship count.
+const YAHOO_MANAGER_TO_OWNER = {
+  "Chad":"chadillac004", "Jordan":"jdcass33", "Felix":"feman99",
+  "Vikas":"vgupt", "Brandon":"bleagle24", "norsworthy":"norsworthyryan"
+};
+
+// ---- Team name -> owner mapping, per Yahoo season ----
+const TEAM_OWNER_BY_SEASON = {
+  "2017": {
+    "5 Rings": "bleagle24",
+    "Demi Moore (Ghost)": "chadillac004",
+    "Graham Crackaz": "jdcass33",
+    "I Kick Field Posts": "selman",
+    "Jonathan's Nice Team": "jmrobe",
+    "Matt's Team": "matthew3400",
+    "norsworthy's Team": "norsworthyryan",
+    "Paul's Super Team": "ffchappyonships",
+    "Ryan's Team": "rklorch225",
+    "Vikas's Team": "vgupt"
+  },
+  "2018": {
+    "5 Rings": "bleagle24",
+    "Demi Moore (Ghost)": "chadillac004",
+    "Felix's Fine Team": "feman99",
+    "Go DJ Dat's My DJ": "jdcass33",
+    "I Kick Field Posts": "selman",
+    "Jonathan's Nice Team": "jmrobe",
+    "Matt's Team": "matthew3400",
+    "norsworthy's Team": "norsworthyryan",
+    "Paul's Super Team": "ffchappyonships",
+    "Ryan's Team": "rklorch225",
+    "Vikas's Team": "vgupt",
+    "Whispering Eye": "jmonk20"
+  },
+  "2019": {
+    "Antonio B's Boys": "matthew3400",
+    "Cincinnati Bengals": "chadillac004",
+    "Felix's Fine Team": "feman99",
+    "Go DJ Dat's My DJ": "jdcass33",
+    "I Kick Field Posts": "selman",
+    "Jonathan's Nice Team": "jmrobe",
+    "Miami Dolphins": "bleagle24",
+    "norsworthy's Team": "norsworthyryan",
+    "Paul's Super Team": "ffchappyonships",
+    "Ryan's Team": "rklorch225",
+    "Vikas's Team": "vgupt",
+    "Whispering Eye": "jmonk20"
+  },
+  "2020": {
+    "Antonio B's Boys": "matthew3400",
+    "Cincinnati Bengals": "chadillac004",
+    "Felix's Fine Team": "feman99",
+    "Hold Muh DK": "jdcass33",
+    "I Kick Field Posts": "selman",
+    "Jonathan's Nice Team": "jmrobe",
+    "Miami Dolphins": "bleagle24",
+    "norsworthy's Team": "norsworthyryan",
+    "Paul's Super Team": "ffchappyonships",
+    "Ryan's Team": "rklorch225",
+    "Vikas's Team": "vgupt",
+    "Whispering Eye": "jmonk20"
+  },
+  "2021": {
+    "Antonio B's Boys": "matthew3400",
+    "Demi Moore": "chadillac004",
+    "Fe Man": "feman99",
+    "Hold Muh DK": "jdcass33",
+    "I Kick Field Posts": "selman",
+    "Long Chubb": "jmrobe",
+    "Najee Tweakin'": "bleagle24",
+    "Norsworthy": "norsworthyryan",
+    "Paul's Super Team": "ffchappyonships",
+    "Ryan's Team": "rklorch225",
+    "Vikas's Team": "vgupt",
+    "Whispering Eye": "jmonk20"
+  },
+  "2022": {
+    "Antonio B's Boys": "matthew3400",
+    "Demi Moore": "chadillac004",
+    "Fe Man": "feman99",
+    "Hold Muh DK": "jdcass33",
+    "I Kick Field Posts": "drvoorhees",
+    "Lamarkanda Forever": "jmrobe",
+    "Najee Tweakin'": "bleagle24",
+    "Norsworthy": "norsworthyryan",
+    "Paul's Super Team": "ffchappyonships",
+    "Ryan's Team": "rklorch225",
+    "Vikas's Team": "vgupt",
+    "Whispering Eye": "jmonk20"
+  },
+  "2023": {
+    "Antonio B's Boys": "matthew3400",
+    "Demi Moore": "chadillac004",
+    "Hold Muh DK": "jdcass33",
+    "Lamarkanda Forever": "jmrobe",
+    "Norsworthy": "norsworthyryan",
+    "Paul's Super Team": "ffchappyonships",
+    "Puka & Rally": "bleagle24",
+    "Run-By Fruiting": "drvoorhees",
+    "Running Up That Hill": "rklorch225",
+    "The Playoffs Powered By Dell": "feman99",
+    "Vikas's Team": "vgupt",
+    "Whispering Eye": "jmonk20"
+  }
+};
+
+// Owners not on Sleeper (former league members) - display name only
+const EXTRA_OWNER_NAMES = { selman: "Selman Mujovic" };
+function ownerDisplayName(owner){
+  return OWNER_NAMES[owner] || EXTRA_OWNER_NAMES[owner] || owner;
+}
+
+// ---- Yahoo era weekly scores (2017-2023), per season per team ----
+const YAHOO_WEEKLY = {"2017":{"Graham Crackaz":{"1":92.54,"2":94.7,"3":123.8,"4":91.42,"5":92.46,"6":89.04,"7":109.14,"8":120.04,"9":95.42,"10":110.46,"11":90.12,"12":85.78,"13":105.52,"14":142.24,"15":113.64,"16":105.56},"5 Rings":{"1":116.84,"2":91.58,"3":90.66,"4":80.58,"5":125.64,"6":120.2,"7":86.22,"8":146.08,"9":100.42,"10":77.6,"11":159.8,"12":147.18,"13":92.32,"14":137.74,"15":68.18},"Vikas's Team":{"1":99.64,"2":95.62,"3":80.12,"4":117.56,"5":89.74,"6":68.32,"7":114.72,"8":148.6,"9":98.7,"10":110.44,"11":139.9,"12":102.32,"13":97.7,"14":83.94,"15":142.7},"norsworthy's Team":{"1":97.42,"2":86.22,"3":91.4,"4":101.44,"5":113.28,"6":71.88,"7":98.36,"8":68.88,"9":105.12,"10":122.44,"11":100.46,"12":97.14,"13":133.86,"14":103.36,"15":111.24,"16":115.8},"Jonathan's Nice Team":{"1":69.92,"2":113.78,"3":98.5,"4":112.18,"5":103.96,"6":103.42,"7":89.28,"8":84.9,"9":91.76,"10":97.52,"11":99.66,"12":79.46,"13":101.86,"14":83.72,"15":98.14,"16":55.68},"Ryan's Team":{"1":69.24,"2":119.22,"3":92.58,"4":134.04,"5":74.9,"6":136.86,"7":85.74,"8":78.16,"9":79.48,"10":94.06,"11":44,"12":69.82,"13":57.12,"14":81.88,"15":115.88,"16":91.8},"Demi Moore (Ghost)":{"1":88.2,"2":116.74,"3":109.6,"4":110,"5":94.02,"6":114.3,"7":123.32,"8":90.12,"9":65.28,"10":131.28,"11":71.28,"12":127.88,"13":125.74,"14":138.24,"15":151.14,"16":125.46},"Paul's Super Team":{"1":86.78,"2":105.08,"3":145.62,"4":112.68,"5":102.92,"6":93.62,"7":126.86,"8":122.62,"9":150.44,"10":105.04,"11":105.4,"12":127.08,"13":108.72,"14":105.92,"15":86.02,"16":50.66},"Matt's Team":{"1":73.82,"2":88.72,"3":93.62,"4":100.2,"5":85.12,"6":88.2,"7":80.86,"8":105.88,"9":79.98,"10":66.72,"11":95.72,"12":87.52,"13":80.98,"14":79.54,"15":96.88,"16":71.92},"I Kick Field Posts":{"1":100.24,"2":105.6,"3":106.9,"4":71.44,"5":35.4,"6":81.24,"7":63.12,"8":48.7,"9":64.82,"10":95.46,"11":83.74,"12":99.86,"13":72.9,"14":81.36,"15":62.84,"16":70.5}},"2018":{"Go DJ Dat's My DJ":{"1":112.84,"2":99.6,"3":133.9,"4":149.8,"5":100.6,"6":59.18,"7":80.86,"8":146.06,"9":105.7,"10":91.88,"11":92.12,"12":122.2,"13":81.86,"14":120.08,"15":103.66,"16":159.06},"5 Rings":{"1":83.46,"2":112.32,"3":99.94,"4":122.48,"5":120.92,"6":94.06,"7":127.28,"8":117.7,"9":121.54,"10":138.8,"11":115.42,"12":107.04,"13":97.48,"14":89.64,"15":74.92},"Vikas's Team":{"1":147.68,"2":77.66,"3":103.72,"4":128.86,"5":95.34,"6":133.1,"7":66.88,"8":105.46,"9":83.36,"10":111.46,"11":86.52,"12":125.92,"13":94.06,"14":107.4,"15":93.76,"16":108.44},"Whispering Eye":{"1":98.64,"2":121.18,"3":92.88,"4":154.46,"5":96.32,"6":112.14,"7":118.04,"8":90.88,"9":99.26,"10":115.2,"11":121.98,"12":120.22,"13":100.62,"14":102.36,"15":38.18,"16":79.78},"Jonathan's Nice Team":{"1":84.44,"2":135.28,"3":116.96,"4":120.56,"5":78.2,"6":125.3,"7":140.98,"8":118.3,"9":93,"10":124.8,"11":91.54,"12":132.3,"13":76.54,"14":119.28,"15":105.84},"norsworthy's Team":{"1":116.24,"2":111.14,"3":86.1,"4":123.72,"5":99.24,"6":151.22,"7":100.9,"8":99.84,"9":95.84,"10":105,"11":118.74,"12":102.94,"13":92.24,"14":118.32,"15":73.9,"16":77.94},"Demi Moore (Ghost)":{"1":102.02,"2":112.14,"3":89.76,"4":80.76,"5":107.22,"6":104.38,"7":77.02,"8":82.52,"9":92.8,"10":79.76,"11":144.82,"12":119.16,"13":106.3,"14":105.38,"15":98.62},"I Kick Field Posts":{"1":129.24,"2":149.7,"3":141.9,"4":89.3,"5":129.48,"6":159.9,"7":134.46,"8":121.66,"9":97.88,"10":101.52,"11":134.78,"12":50.34,"13":123.6,"14":92.5,"15":77.54,"16":63.6},"Matt's Team":{"1":110.86,"2":129.12,"3":63.94,"4":126.28,"5":103.14,"6":116.02,"7":106.64,"8":88.36,"9":87.26,"10":77.3,"11":57.48,"12":102.88,"13":60.14,"14":48.02,"15":50.3},"Paul's Super Team":{"1":145.7,"2":133.28,"3":102.52,"4":96.66,"5":179.5,"6":177.8,"7":77.5,"8":155.54,"9":142.62,"10":135.22,"11":109.08,"12":145.18,"13":135.26,"14":123.32,"15":94.38,"16":157.2},"Ryan's Team":{"1":114.94,"2":88.64,"3":120.3,"4":82.22,"5":109.16,"6":101.5,"7":85.56,"8":102.54,"9":91.36,"10":137.56,"11":80.58,"12":96.62,"13":112.18,"14":90.74,"15":70.56,"16":95.78},"Felix's Fine Team":{"1":83.32,"2":93.66,"3":100.46,"4":150.7,"5":116.84,"6":95.04,"7":155.28,"8":92.8,"9":152.54,"10":100.82,"11":124.22,"12":88.98,"13":69.82,"14":102,"15":95.06,"16":87.26}},"2019":{"Go DJ Dat's My DJ":{"1":119.2,"2":72.6,"3":162.24,"4":107.1,"5":160.82,"6":107.7,"7":84.34,"8":99.48,"9":112.52,"10":118.88,"11":99.8,"12":108,"13":106.1,"14":132.6,"15":123.24,"16":94.26},"Miami Dolphins":{"1":113.3,"2":71.1,"3":89.3,"4":109.08,"5":78.1,"6":75.72,"7":116.08,"8":97.46,"9":93.8,"10":102.62,"11":93.12,"12":85.02,"13":94.02,"14":127.64,"15":122.92,"16":73.4},"Vikas's Team":{"1":109.36,"2":120.26,"3":115.74,"4":128.72,"5":122.42,"6":123.02,"7":106.46,"8":121.7,"9":138.38,"10":91.78,"11":84.66,"12":84.88,"13":87.9,"14":70.16,"15":81.08},"Whispering Eye":{"1":91.22,"2":98.82,"3":107.72,"4":132.28,"5":126.74,"6":117.4,"7":108.86,"8":167.28,"9":91.16,"10":73.22,"11":96.62,"12":116.88,"13":132.06,"14":110.22,"15":121.36,"16":103.82},"Jonathan's Nice Team":{"1":146.86,"2":130.38,"3":89.58,"4":134.38,"5":123.54,"6":99.14,"7":110.32,"8":121.88,"9":124.22,"10":170.22,"11":125.48,"12":132.26,"13":119.1,"14":116.3,"15":120.28,"16":108.82},"norsworthy's Team":{"1":99.92,"2":116.82,"3":117.86,"4":111.1,"5":84.54,"6":90.02,"7":86.54,"8":118.6,"9":108.66,"10":116.14,"11":111.68,"12":99.88,"13":85.6,"14":93.52,"15":104.3},"Cincinnati Bengals":{"1":93.3,"2":102.2,"3":89.84,"4":90.04,"5":166.46,"6":71.1,"7":79.92,"8":98.2,"9":57.5,"10":98.6,"11":43.86,"12":107.2,"13":72.76,"14":96.5,"15":74.42,"16":109.72},"I Kick Field Posts":{"1":113.52,"2":82.36,"3":113.64,"4":70.5,"5":85.62,"6":116.86,"7":74.26,"8":100.46,"9":111.6,"10":104.02,"11":87.94,"12":48.7,"13":114.64,"14":104.96,"15":89.82,"16":82.26},"Antonio B's Boys":{"1":111.36,"2":105.1,"3":131.86,"4":124.38,"5":136.5,"6":116.14,"7":50.26,"8":81.5,"9":103.54,"10":123.56,"11":85.5,"12":79.24,"13":103.68,"14":104.22,"15":98.1,"16":79.66},"Paul's Super Team":{"1":94.82,"2":103.66,"3":120.8,"4":101.28,"5":67.52,"6":89.72,"7":134.16,"8":128.1,"9":108.24,"10":72.22,"11":104.48,"12":93.66,"13":92.22,"14":62.6,"15":139.52},"Ryan's Team":{"1":108.22,"2":124.06,"3":106.54,"4":100.9,"5":131.54,"6":111.9,"7":114.22,"8":91.06,"9":99.64,"10":97.32,"11":115.56,"12":103.02,"13":83.38,"14":72.68,"15":79.82},"Felix's Fine Team":{"1":122.6,"2":82.62,"3":74.58,"4":84,"5":94.14,"6":107.92,"7":90.34,"8":101.36,"9":82.66,"10":102.38,"11":81.22,"12":130.84,"13":109.1,"14":152.16,"15":157.68,"16":100.36}},"2020":{"Hold Muh DK":{"1":112.08,"2":162.32,"3":131.6,"4":127.1,"5":115.38,"6":97.52,"7":105.36,"8":109.64,"9":77.8,"10":65.52,"11":115.98,"12":81,"13":104.82,"14":114.24,"15":59.34},"Miami Dolphins":{"1":85.54,"2":100.88,"3":123.1,"4":106.24,"5":76.2,"6":150.4,"7":123.1,"8":143.74,"9":112.98,"10":85.42,"11":99.42,"12":111.8,"13":97.62,"14":86.32,"15":91.06,"16":62.62},"Vikas's Team":{"1":122.14,"2":109.4,"3":118.78,"4":99.18,"5":118.14,"6":105.64,"7":116.98,"8":95.62,"9":114.04,"10":92.88,"11":129.7,"12":130.24,"13":86.36,"14":108.52,"15":121.56,"16":146.08},"Whispering Eye":{"1":102.3,"2":93.18,"3":102.32,"4":107.7,"5":108.5,"6":99.42,"7":128.58,"8":96.4,"9":91.48,"10":115.34,"11":123.74,"12":79.72,"13":81.94,"14":103.08,"15":106.26},"Jonathan's Nice Team":{"1":105,"2":85.46,"3":122.88,"4":117.62,"5":89.9,"6":68.74,"7":84.68,"8":74.92,"9":121.1,"10":67.36,"11":131.34,"12":152.4,"13":89.38,"14":102.34,"15":57.9,"16":55.02},"norsworthy's Team":{"1":129.76,"2":109.5,"3":112.22,"4":148.58,"5":87.1,"6":85.1,"7":111.02,"8":90.44,"9":84.8,"10":136.3,"11":101.24,"12":136.84,"13":135.7,"14":135.1,"15":91.52,"16":196.44},"Cincinnati Bengals":{"1":136.26,"2":94.48,"3":97.78,"4":124.86,"5":126.92,"6":104.38,"7":47.82,"8":75.16,"9":47.66,"10":92.64,"11":96.44,"12":92.1,"13":98.7,"14":86.54,"15":111.9,"16":72.42},"I Kick Field Posts":{"1":144.32,"2":113.6,"3":90.36,"4":78.5,"5":121.26,"6":82.6,"7":90.16,"8":79.88,"9":125.04,"10":66.82,"11":77.86,"12":133.12,"13":108.88,"14":89.94,"15":103.42,"16":100.66},"Antonio B's Boys":{"1":106,"2":97.74,"3":84.7,"4":116.62,"5":121.8,"6":65.52,"7":82.7,"8":68.9,"9":106.52,"10":79.7,"11":78.66,"12":60.1,"13":67.02,"14":79.86,"15":71.34},"Paul's Super Team":{"1":116.7,"2":126.72,"3":148.12,"4":101,"5":88.74,"6":101.44,"7":142.72,"8":154.24,"9":122.36,"10":69.42,"11":106.28,"12":94.6,"13":152.4,"14":93.1,"15":148.48,"16":95.3},"Ryan's Team":{"1":99.68,"2":120.7,"3":103.14,"4":133.12,"5":101.02,"6":128.68,"7":93.68,"8":90.66,"9":79,"10":146.76,"11":80.12,"12":93.2,"13":99.1,"14":66.02,"15":115.96},"Felix's Fine Team":{"1":90.7,"2":131.58,"3":103.8,"4":64.62,"5":95.62,"6":85.62,"7":141.66,"8":78.52,"9":100.62,"10":111.48,"11":101.76,"12":96.3,"13":105.86,"14":129.38,"15":115.92,"16":130.64}},"2021":{"Hold Muh DK":{"1":142.72,"2":87.38,"3":104.12,"4":101.02,"5":126.28,"6":134,"7":107.04,"8":118,"9":86.98,"10":105.14,"11":66.84,"12":74.9,"13":132.02,"14":93.84,"15":88.48,"16":119},"Najee Tweakin'":{"1":127.96,"2":101.92,"3":125.22,"4":157.86,"5":111.98,"6":111.48,"7":71.38,"8":113.18,"9":62.12,"10":138.34,"11":96.68,"12":106.88,"13":106.46,"14":122.9,"15":75.34,"16":135.64,"17":99.18},"Vikas's Team":{"1":112.08,"2":99.82,"3":107.24,"4":135.98,"5":144.82,"6":117.4,"7":138.84,"8":101.02,"9":118.44,"10":112.1,"11":155.78,"12":119.72,"13":122.38,"14":96.2,"15":106.44,"16":113.34,"17":134.38},"Whispering Eye":{"1":116.56,"2":104.44,"3":84.08,"4":74.66,"5":144.14,"6":119.88,"7":85.24,"8":104.4,"9":69.82,"10":116.7,"11":117.58,"12":91.54,"13":150.12,"14":131.22,"15":116.66,"16":120.28,"17":112.5},"Long Chubb":{"1":93.8,"2":127.56,"3":94.98,"4":85.64,"5":113.68,"6":92.18,"7":66.18,"8":84.94,"9":117.44,"10":68.82,"11":51,"12":72,"13":97.62,"14":73.88,"15":39.7,"16":83.1},"Norsworthy":{"1":85.46,"2":156,"3":129.54,"4":138.42,"5":121.96,"6":169,"7":113.46,"8":91.36,"9":124,"10":127.38,"11":137.6,"12":134.54,"13":150.36,"14":175.14,"15":130.72,"16":117.08,"17":97.92},"Demi Moore":{"1":105.34,"2":109.08,"3":104.02,"4":95.52,"5":96.7,"6":103.42,"7":143.14,"8":81.02,"9":64.88,"10":70.66,"11":79.44,"12":50.32,"13":92.9,"14":89.84,"15":74.78,"16":59},"I Kick Field Posts":{"1":120.88,"2":119.22,"3":110.4,"4":116.72,"5":117.48,"6":120.38,"7":102.74,"8":98.8,"9":60.24,"10":95.74,"11":108.8,"12":79.02,"13":87.36,"14":120.42,"15":84.5,"16":112.92},"Antonio B's Boys":{"1":139.96,"2":97.1,"3":58.54,"4":94.92,"5":84.36,"6":85.66,"7":71.94,"8":85.06,"9":85.08,"10":73.52,"11":44.38,"12":24.96,"13":33.5,"14":78.5,"15":71.74,"16":61.66,"17":85.26},"Paul's Super Team":{"1":106.78,"2":78.72,"3":121.34,"4":96.2,"5":122.12,"6":113.06,"7":90.02,"8":113.42,"9":121.02,"10":63.62,"11":127.18,"12":114.8,"13":96.84,"14":95.18,"15":44.4,"16":75.9,"17":64},"Ryan's Team":{"1":94.9,"2":114.46,"3":131.62,"4":101.22,"5":127.4,"6":94.82,"7":112.18,"8":103.16,"9":70.16,"10":86.1,"11":92.36,"12":130.7,"13":67.4,"14":93.62,"15":106.4,"16":86.86,"17":87},"Fe Man":{"1":97.44,"2":143.42,"3":112.92,"4":106.2,"5":116.1,"6":106.14,"7":122.66,"8":119.9,"9":82.46,"10":81.52,"11":136.66,"12":125.88,"13":104,"14":117.58,"15":73.16,"16":106.98,"17":101.36}},"2022":{"Hold Muh DK":{"1":54.06,"2":97.64,"3":97.58,"4":125.82,"5":86.26,"6":74.68,"7":84.58,"8":86.7,"9":94.1,"10":127.96,"11":115.54,"12":92.74,"13":124.2,"14":78.86,"15":126.84,"16":123.58,"17":52.48},"Whispering Eye":{"1":112.72,"2":106.76,"3":97.2,"4":142.88,"5":135.88,"6":95,"7":127.24,"8":83.38,"9":103.04,"10":99.42,"11":109.1,"12":160,"13":136.24,"14":94.16,"15":71.2,"16":78.7,"17":94.4},"Najee Tweakin'":{"1":75.9,"2":83.7,"3":107.88,"4":113.56,"5":121.96,"6":107.66,"7":92.62,"8":125.88,"9":112.44,"10":93.64,"11":121.76,"12":96.2,"13":101.42,"14":92.58,"15":107.06,"16":79.96,"17":111.82},"I Kick Field Posts":{"1":111.02,"2":142.02,"3":114.2,"4":81.66,"5":113.96,"6":87.6,"7":96.2,"8":122.9,"9":105.62,"10":82.7,"11":105.5,"12":114.92,"13":134.3,"14":86.38,"15":98.6,"16":65.1},"Vikas's Team":{"1":100.86,"2":135.56,"3":54.48,"4":114.1,"5":81.22,"6":98.02,"7":73.42,"8":115.44,"9":80.5,"10":97,"11":120.9,"12":128.36,"13":123.1,"14":130.38,"15":105.62,"16":93.6,"17":76.86},"Demi Moore":{"1":125,"2":86.28,"3":125.42,"4":101.92,"5":114.54,"6":101.1,"7":127.54,"8":79.04,"9":111.16,"10":87.14,"11":104.9,"12":108.5,"13":98.5,"14":131.3,"15":104.9,"16":77.8},"Lamarkanda Forever":{"1":93.82,"2":122.12,"3":113.32,"4":101.46,"5":94.16,"6":83.1,"7":100.9,"8":112.12,"9":74.62,"10":86.54,"11":65.66,"12":82.16,"13":48.54,"14":60.26,"15":73.7,"16":72.96},"Norsworthy":{"1":160.5,"2":101.26,"3":93.86,"4":112.58,"5":115.48,"6":123.24,"7":90.26,"8":133.32,"9":102.14,"10":128.44,"11":63.38,"12":144.42,"13":116.06,"14":134.32,"15":119.28,"16":121.14,"17":87.08},"Antonio B's Boys":{"1":94.08,"2":107.94,"3":73.6,"4":69.72,"5":90.44,"6":61.08,"7":66.36,"8":118.54,"9":77.7,"10":102.98,"11":103.5,"12":98.56,"13":76.72,"14":83.9,"15":100.3,"16":105.26},"Paul's Super Team":{"1":63.48,"2":128.9,"3":99.44,"4":88.76,"5":100.64,"6":93.82,"7":114.7,"8":159.4,"9":121.8,"10":88.12,"11":101.7,"12":87.04,"13":77.84,"14":109.8,"15":109.66,"16":88.2,"17":29.6},"Ryan's Team":{"1":117.18,"2":81.88,"3":103.2,"4":131.72,"5":113.96,"6":91.66,"7":107.94,"8":122.08,"9":82,"10":117.08,"11":103.72,"12":85.42,"13":113.32,"14":84.88,"15":114.16,"16":115.18,"17":82.8},"Fe Man":{"1":111.16,"2":95.9,"3":59.74,"4":92.16,"5":122.96,"6":85.86,"7":103,"8":104.48,"9":143.3,"10":65.9,"11":102.72,"12":87.62,"13":80.34,"14":92.56,"15":89.72,"16":125.8,"17":118.22}},"2023":{"Hold Muh DK":{"1":76.98,"2":113.18,"3":97.26,"4":74.5,"5":164.18,"6":114.8,"7":105.1,"8":145.02,"9":98.52,"10":99.48,"11":81.14,"12":100.06,"13":136.06,"14":91.02,"15":136.68,"16":62.4,"17":115.5},"Lamarkanda Forever":{"1":73.32,"2":114.12,"3":102.38,"4":107.1,"5":117.82,"6":138.42,"7":103.86,"8":108.28,"9":70.48,"10":128.12,"11":109.74,"12":119.38,"13":93.92,"14":94.54,"15":87.42,"16":88.18},"Puka & Rally":{"1":72.94,"2":132.7,"3":107.18,"4":109.62,"5":95.14,"6":88.94,"7":125.26,"8":124.8,"9":137.9,"10":124.94,"11":95.88,"12":85.92,"13":102.4,"14":101.44,"15":13,"16":110.8,"17":92.8},"Vikas's Team":{"1":105.76,"2":140.5,"3":86.46,"4":102.2,"5":64.62,"6":103,"7":97.58,"8":147.7,"9":126.6,"10":122.58,"11":94.64,"12":109.54,"13":140.64,"14":30.4,"15":106.02,"16":132.8,"17":107.68},"Demi Moore":{"1":108.68,"2":140.42,"3":108.14,"4":131.8,"5":117.86,"6":101.14,"7":98.86,"8":98.36,"9":50.68,"10":149.96,"11":102.92,"12":155,"13":122.9,"14":66.92,"15":82.5,"16":116.04,"17":106.3},"Antonio B's Boys":{"1":88.06,"2":101.34,"3":105.78,"4":104.14,"5":83.34,"6":86.12,"7":69.58,"8":80.28,"9":51.48,"10":79.12,"11":107.66,"12":76.78,"13":74.5,"14":114.44,"15":88.44,"16":87.28},"Running Up That Hill":{"1":132.94,"2":73.94,"3":93.66,"4":81.9,"5":104.78,"6":80.02,"7":104,"8":107.36,"9":65.3,"10":70.1,"11":54.5,"12":107.06,"13":83.74,"14":85.76,"15":111.1,"16":92.26,"17":86.68},"Run-By Fruiting":{"1":127.3,"2":93.52,"3":100.78,"4":100.86,"5":135.02,"6":82.7,"7":103.46,"8":96.56,"9":92.58,"10":92.74,"11":106.7,"12":120.3,"13":86.42,"14":99.88,"15":73.02,"16":111.04,"17":85.88},"Paul's Super Team":{"1":87.64,"2":79.06,"3":97.42,"4":97.1,"5":64.06,"6":85.86,"7":89.5,"8":116.06,"9":93.44,"10":93.58,"11":88.8,"12":137.86,"13":101.38,"14":118.52,"15":80.76,"16":109.18},"Norsworthy":{"1":76.44,"2":126.34,"3":143.16,"4":92.58,"5":96.82,"6":114.98,"7":94.24,"8":105.96,"9":90.32,"10":57.1,"11":143.3,"12":64.12,"13":71,"14":114.4,"15":89.66,"16":140.22,"17":83.68},"Whispering Eye":{"1":71.12,"2":92.4,"3":151.86,"4":65.26,"5":125.76,"6":120.74,"7":113.12,"8":102.66,"9":113.06,"10":135.56,"11":102.56,"12":108.54,"13":146.26,"14":134.34,"15":119.46,"16":61.62},"The Playoffs Powered By Dell":{"1":88.26,"2":83,"3":108.3,"4":113.08,"5":123.78,"6":80.28,"7":65.26,"8":99.52,"9":93.74,"10":87.92,"11":113.2,"12":119.48,"13":77.28,"14":66.34,"15":47.8,"16":23.4,"17":52.6}}};
+// ---- End-of-season Wk18 rosters (2025-26), for next-year keeper eligibility ----
+const WK18_ROSTERS = {"jdcass33":[{"player":"Josh Allen","pos":"QB","draftpos":1},{"player":"Josh Jacobs","pos":"RB","draftpos":2},{"player":"DK Metcalf","pos":"WR","draftpos":3},{"player":"RJ Harvey","pos":"RB","draftpos":4},{"player":"Chris Olave","pos":"WR","draftpos":5},{"player":"Emeka Egbuka","pos":"WR","draftpos":6},{"player":"Jaxon Smith-Njigba","pos":"WR","draftpos":7},{"player":"Sam LaPorta","pos":"TE","draftpos":8},{"player":"Blake Corum","pos":"RB","draftpos":9},{"player":"Dalton Schultz","pos":"TE","draftpos":9},{"player":"Jordan Mason","pos":"RB","draftpos":9},{"player":"Rachaad White","pos":"RB","draftpos":12},{"player":"Tyler Allgeier","pos":"RB","draftpos":13},{"player":"Jaxson Dart","pos":"QB","draftpos":"FA"},{"player":"Jason Myers","pos":"K","draftpos":"FA"}],"drvoorhees":[{"player":"Bo Nix","pos":"QB","draftpos":9},{"player":"Brock Bowers","pos":"TE","draftpos":6},{"player":"DJ Giddens","pos":"RB","draftpos":14},{"player":"Woody Marks","pos":"RB","draftpos":"FA"},{"player":"Cam Skattebo","pos":"RB","draftpos":8},{"player":"Oronde Gadsden","pos":"TE","draftpos":"FA"},{"player":"Luther Burden","pos":"WR","draftpos":14},{"player":"TreVeyon Henderson","pos":"RB","draftpos":2},{"player":"Isaac TeSlaa","pos":"WR","draftpos":15},{"player":"Ka'imi Fairbairn","pos":"K","draftpos":14},{"player":"George Kittle","pos":"TE","draftpos":4},{"player":"CeeDee Lamb","pos":"WR","draftpos":1},{"player":"Rico Dowdle","pos":"RB","draftpos":11},{"player":"Jauan Jennings","pos":"WR","draftpos":9},{"player":"Malik Davis","pos":"RB","draftpos":"FA"}],"vgupt":[{"player":"Andrei Iosivas","pos":"WR","draftpos":"FA"},{"player":"Brian Thomas","pos":"WR","draftpos":7},{"player":"Kimani Vidal","pos":"RB","draftpos":15},{"player":"Tyrone Tracy","pos":"RB","draftpos":6},{"player":"Tez Johnson","pos":"WR","draftpos":"FA"},{"player":"Keenan Allen","pos":"WR","draftpos":12},{"player":"Chris Boswell","pos":"K","draftpos":13},{"player":"Saquon Barkley","pos":"RB","draftpos":1},{"player":"Lamar Jackson","pos":"QB","draftpos":2},{"player":"D'Andre Swift","pos":"RB","draftpos":4},{"player":"Brandon Aiyuk","pos":"WR","draftpos":10},{"player":"Trey McBride","pos":"TE","draftpos":8},{"player":"Parker Washington","pos":"WR","draftpos":"FA"},{"player":"Zay Flowers","pos":"WR","draftpos":5}],"ffchappyonships":[{"player":"J.J. McCarthy","pos":"QB","draftpos":12},{"player":"Harold Fannin","pos":"TE","draftpos":"FA"},{"player":"Omarion Hampton","pos":"RB","draftpos":2},{"player":"Tyler Loop","pos":"K","draftpos":15},{"player":"Davante Adams","pos":"WR","draftpos":3},{"player":"Dak Prescott","pos":"QB","draftpos":13},{"player":"Nick Chubb","pos":"RB","draftpos":8},{"player":"Courtland Sutton","pos":"WR","draftpos":4},{"player":"Deebo Samuel","pos":"WR","draftpos":6},{"player":"Travis Etienne","pos":"RB","draftpos":7},{"player":"Amon-Ra St. Brown","pos":"WR","draftpos":1},{"player":"Garrett Wilson","pos":"WR","draftpos":11},{"player":"De'Von Achane","pos":"RB","draftpos":10},{"player":"Quentin Johnston","pos":"WR","draftpos":"FA"}],"bleagle24":[{"player":"Chris Rodriguez","pos":"RB","draftpos":"FA"},{"player":"Bucky Irving","pos":"RB","draftpos":9},{"player":"Devin Neal","pos":"RB","draftpos":"FA"},{"player":"Tyler Warren","pos":"TE","draftpos":6},{"player":"Jacory Croskey-Merritt","pos":"RB","draftpos":8},{"player":"Alvin Kamara","pos":"RB","draftpos":3},{"player":"Kareem Hunt","pos":"RB","draftpos":"FA"},{"player":"Joe Burrow","pos":"QB","draftpos":2},{"player":"Ja'Marr Chase","pos":"WR","draftpos":1},{"player":"Brian Robinson","pos":"RB","draftpos":11},{"player":"Christian Watson","pos":"WR","draftpos":7},{"player":"Cameron Dicker","pos":"K","draftpos":13},{"player":"Puka Nacua","pos":"WR","draftpos":7}],"jmrobe":[{"player":"Rome Odunze","pos":"WR","draftpos":5},{"player":"Cam Little","pos":"K","draftpos":15},{"player":"Colston Loveland","pos":"TE","draftpos":3},{"player":"Jared Goff","pos":"QB","draftpos":10},{"player":"Derrick Henry","pos":"RB","draftpos":1},{"player":"Hunter Henry","pos":"TE","draftpos":12},{"player":"Chris Godwin","pos":"WR","draftpos":9},{"player":"J.K. Dobbins","pos":"RB","draftpos":7},{"player":"DeVonta Smith","pos":"WR","draftpos":4},{"player":"Rashod Bateman","pos":"WR","draftpos":14},{"player":"Khalil Shakir","pos":"WR","draftpos":8},{"player":"Jameson Williams","pos":"WR","draftpos":6},{"player":"Kenneth Walker","pos":"RB","draftpos":2},{"player":"C.J. Stroud","pos":"QB","draftpos":11}],"jmonk20":[{"player":"Tre Tucker","pos":"WR","draftpos":"FA"},{"player":"Jake Bates","pos":"K","draftpos":13},{"player":"Theo Johnson","pos":"TE","draftpos":"FA"},{"player":"Marvin Harrison","pos":"WR","draftpos":2},{"player":"Ladd McConkey","pos":"WR","draftpos":7},{"player":"David Njoku","pos":"TE","draftpos":6},{"player":"Patrick Mahomes","pos":"QB","draftpos":5},{"player":"Terry McLaurin","pos":"WR","draftpos":3},{"player":"Tony Pollard","pos":"RB","draftpos":4},{"player":"Gardner Minshew","pos":"QB","draftpos":"FA"},{"player":"Jerry Jeudy","pos":"WR","draftpos":12},{"player":"Rhamondre Stevenson","pos":"RB","draftpos":9},{"player":"Jahmyr Gibbs","pos":"RB","draftpos":1},{"player":"Josh Downs","pos":"WR","draftpos":10}],"feman99":[{"player":"Emanuel Wilson","pos":"RB","draftpos":"FA"},{"player":"Drake Maye","pos":"QB","draftpos":8},{"player":"Jayden Higgins","pos":"WR","draftpos":9},{"player":"Tetairoa McMillan","pos":"WR","draftpos":4},{"player":"Kyle Monangai","pos":"RB","draftpos":"FA"},{"player":"A.J. Brown","pos":"WR","draftpos":2},{"player":"Devin Singletary","pos":"RB","draftpos":11},{"player":"Justin Jefferson","pos":"WR","draftpos":1},{"player":"Jaylen Waddle","pos":"WR","draftpos":5},{"player":"Kenneth Gainwell","pos":"RB","draftpos":"FA"},{"player":"Javonte Williams","pos":"RB","draftpos":6},{"player":"Evan McPherson","pos":"K","draftpos":13},{"player":"Isaiah Likely","pos":"TE","draftpos":"FA"},{"player":"Chase Brown","pos":"RB","draftpos":7},{"player":"Tucker Kraft","pos":"TE","draftpos":9}],"norsworthyryan":[{"player":"Jayden Reed","pos":"WR","draftpos":8},{"player":"Caleb Williams","pos":"QB","draftpos":12},{"player":"Malik Nabers","pos":"WR","draftpos":1},{"player":"Quinshon Judkins","pos":"RB","draftpos":6},{"player":"Brandon McManus","pos":"K","draftpos":"FA"},{"player":"Cooper Kupp","pos":"WR","draftpos":8},{"player":"Samaje Perine","pos":"RB","draftpos":"FA"},{"player":"Aaron Jones","pos":"RB","draftpos":4},{"player":"Mark Andrews","pos":"TE","draftpos":5},{"player":"Justin Herbert","pos":"QB","draftpos":10},{"player":"Jonathan Taylor","pos":"RB","draftpos":3},{"player":"Darnell Mooney","pos":"WR","draftpos":12},{"player":"Jake Ferguson","pos":"TE","draftpos":13},{"player":"Drake London","pos":"WR","draftpos":2},{"player":"Jordan Addison","pos":"WR","draftpos":7}],"rklorch225":[{"player":"Michael Wilson","pos":"WR","draftpos":"FA"},{"player":"Brandon Aubrey","pos":"K","draftpos":13},{"player":"Travis Kelce","pos":"TE","draftpos":4},{"player":"Mike Evans","pos":"WR","draftpos":3},{"player":"Matthew Stafford","pos":"QB","draftpos":13},{"player":"Michael Pittman","pos":"WR","draftpos":11},{"player":"Jalen Hurts","pos":"QB","draftpos":3},{"player":"Juwan Johnson","pos":"TE","draftpos":"FA"},{"player":"Nico Collins","pos":"WR","draftpos":6},{"player":"Breece Hall","pos":"RB","draftpos":2},{"player":"Jaylen Warren","pos":"RB","draftpos":7},{"player":"Bijan Robinson","pos":"RB","draftpos":1},{"player":"Zach Charbonnet","pos":"RB","draftpos":9}],"chadillac004":[{"player":"Rashee Rice","pos":"WR","draftpos":2},{"player":"Jayden Daniels","pos":"QB","draftpos":6},{"player":"Ricky Pearsall","pos":"WR","draftpos":7},{"player":"Dylan Sampson","pos":"RB","draftpos":"FA"},{"player":"Ashton Jeanty","pos":"RB","draftpos":1},{"player":"Andy Borregales","pos":"K","draftpos":"FA"},{"player":"Taysom Hill","pos":"TE","draftpos":"FA"},{"player":"Dallas Goedert","pos":"TE","draftpos":13},{"player":"Trevor Lawrence","pos":"QB","draftpos":12},{"player":"Michael Carter","pos":"RB","draftpos":"FA"},{"player":"Wan'Dale Robinson","pos":"WR","draftpos":"FA"},{"player":"George Pickens","pos":"WR","draftpos":3},{"player":"Alec Pierce","pos":"WR","draftpos":"FA"},{"player":"Kyren Williams","pos":"RB","draftpos":8},{"player":"Brock Purdy","pos":"QB","draftpos":10}],"matthew3400":[{"player":"Joshua Karty","pos":"K","draftpos":"FA"},{"player":"Stefon Diggs","pos":"WR","draftpos":8},{"player":"Christian McCaffrey","pos":"RB","draftpos":1},{"player":"Evan Engram","pos":"TE","draftpos":6},{"player":"Baker Mayfield","pos":"QB","draftpos":5},{"player":"Sam Darnold","pos":"QB","draftpos":"FA"},{"player":"DJ Moore","pos":"WR","draftpos":4},{"player":"Jakobi Meyers","pos":"WR","draftpos":7},{"player":"Chase McLaughlin","pos":"K","draftpos":14},{"player":"Tee Higgins","pos":"WR","draftpos":3},{"player":"Kyle Pitts","pos":"TE","draftpos":11},{"player":"Chuba Hubbard","pos":"RB","draftpos":13},{"player":"James Cook","pos":"RB","draftpos":2},{"player":"Tyjae Spears","pos":"RB","draftpos":12}]};
+// ---- state ----
+let seasons = [];        // [{league_id, season, status}], most recent first
+let seasonData = {};     // season(year str) -> {league, rosters, users, teams:{roster_id:{name,handle,owner_id}}}
+let matchupCache = {};   // `${season}-${week}` -> matchups array
+let activeTab = "standings";
+let activeSeason = null;
+let activeWeek = 1;
+
+async function getJSON(url){
+  const res = await fetch(url);
+  if(!res.ok) throw new Error(`Sleeper API ${res.status} on ${url}`);
+  return res.json();
+}
+
+function ordYear(n){ return n===1?"1st":n===2?"2nd":n===3?"3rd":n+"th"; }
+
+async function buildSeasonChain(startId){
+  let id = startId;
+  let guard = 0;
+  const chain = [];
+  while(id && id !== "0" && guard < 25){
+    guard++;
+    const lg = await getJSON(`${API}/league/${id}`);
+    chain.push({league_id:id, season: lg.season, status: lg.status, prev: lg.previous_league_id, name: lg.name});
+    id = lg.previous_league_id;
+  }
+  return chain; // most recent first
+}
+
+async function loadSeasonCore(entry){
+  const y = entry.season;
+  if(seasonData[y]) return seasonData[y];
+  const [rosters, users] = await Promise.all([
+    getJSON(`${API}/league/${entry.league_id}/rosters`),
+    getJSON(`${API}/league/${entry.league_id}/users`)
+  ]);
+  const userMap = {};
+  users.forEach(u => userMap[u.user_id] = u);
+  const teams = {};
+  rosters.forEach(r => {
+    const u = userMap[r.owner_id] || {};
+    teams[r.roster_id] = {
+      roster_id: r.roster_id,
+      owner_id: r.owner_id,
+      handle: u.username || u.display_name || "unknown",
+      name: (u.metadata && u.metadata.team_name) || u.display_name || "Team " + r.roster_id,
+      wins: r.settings?.wins ?? 0,
+      losses: r.settings?.losses ?? 0,
+      ties: r.settings?.ties ?? 0,
+      fpts: (r.settings?.fpts ?? 0) + (r.settings?.fpts_decimal ?? 0)/100,
+      fpts_against: (r.settings?.fpts_against ?? 0) + (r.settings?.fpts_against_decimal ?? 0)/100,
+    };
+  });
+  seasonData[y] = { entry, rosters, users, teams };
+  return seasonData[y];
+}
+
+async function getMatchups(season, week){
+  const key = `${season}-${week}`;
+  if(matchupCache[key]) return matchupCache[key];
+  const entry = seasons.find(s => s.season === season);
+  const m = await getJSON(`${API}/league/${entry.league_id}/matchups/${week}`);
+  matchupCache[key] = m;
+  return m;
+}
+
+function setMain(html){ document.getElementById("main").innerHTML = html; }
+function loadingMsg(t){ return `<div class="state-msg"><span class="spinner"></span>${t}</div>`; }
+function errorMsg(t){ return `<div class="state-msg error">${t}</div>`; }
+
+// ---------- STANDINGS ----------
+let allTimeCache = null;
+
+function getOwnerRecordForYahooSeason(y, owner){
+  for(const s of y.standings){
+    if(TEAM_OWNER_BY_SEASON[y.season] && TEAM_OWNER_BY_SEASON[y.season][s.team] === owner) return s;
+  }
+  return null;
+}
+
+async function computeAllTimeStandings(){
+  if(allTimeCache) return allTimeCache;
+  const totals = {}; // owner -> {wins,losses,ties,pf,pa,titles}
+  const bump = (owner, w,l,t,pf,pa) => {
+    const rec = totals[owner] || {wins:0,losses:0,ties:0,pf:0,pa:0,titles:0};
+    rec.wins+=w; rec.losses+=l; rec.ties+=t||0; rec.pf+=pf; rec.pa+=pa;
+    totals[owner]=rec;
+  };
+  // Yahoo era
+  YAHOO_SEASONS.forEach(y => {
+    const map = TEAM_OWNER_BY_SEASON[y.season] || {};
+    y.standings.forEach(s => {
+      const owner = map[s.team];
+      if(owner) bump(owner, s.w, s.l, s.t, s.pf, s.pa);
+    });
+    const champOwner = YAHOO_MANAGER_TO_OWNER[y.champion.manager];
+    if(champOwner) (totals[champOwner]||bump(champOwner,0,0,0,0,0)) && (totals[champOwner].titles += 1);
+  });
+  // Sleeper era
+  for(const entry of seasons){
+    if(entry.status === "pre_draft" || entry.status === "drafting") continue;
+    const data = await loadSeasonCore(entry);
+    Object.values(data.teams).forEach(t => bump(t.handle, t.wins, t.losses, t.ties||0, t.fpts, t.fpts_against));
+    try{
+      const bracket = await getJSON(`${API}/league/${entry.league_id}/winners_bracket`);
+      const final = bracket.find(g => g.p === 1 && g.w);
+      if(final){
+        const champ = data.teams[final.w];
+        if(champ && totals[champ.handle]) totals[champ.handle].titles += 1;
+      }
+    }catch(e){}
+  }
+  allTimeCache = totals;
+  return totals;
+}
+
+function allTimeTableHtml(totals){
+  const rows = Object.entries(totals).sort((a,b) => {
+    const pa = a[1].wins/((a[1].wins+a[1].losses)||1), pb = b[1].wins/((b[1].wins+b[1].losses)||1);
+    return pb - pa;
+  });
+  const body = rows.map(([owner, r], i) => {
+    const pct = r.wins / ((r.wins + r.losses) || 1);
+    const winPct = pct >= 1 ? "1.000" : pct.toFixed(3).replace(/^0/, "");
+    return `
+    <tr>
+      <td class="rank">${i+1}</td>
+      <td class="team-cell"><div><div class="team-name">${ownerDisplayName(owner)}</div><div class="team-handle">@${owner}</div></div></td>
+      <td class="num">${r.wins}-${r.losses}${r.ties?`-${r.ties}`:""}</td>
+      <td class="num">${winPct}</td>
+      <td class="num">${r.titles || "—"}</td>
+      <td class="num">${r.pf.toFixed(0)}</td>
+    </tr>`;
+  }).join("");
+  return `<table>
+    <thead><tr><th></th><th>Owner</th><th class="num">Record</th><th class="num">Win %</th><th class="num">Titles</th><th class="num">Career PF</th></tr></thead>
+    <tbody>${body}</tbody>
+  </table>`;
+}
+
+function allSeasonYears(){
+  const sleeperYears = seasons.filter(s => s.status !== "pre_draft" && s.status !== "drafting").map(s => s.season);
+  const yahooYears = YAHOO_SEASONS.map(y => y.season).slice().reverse();
+  return [...sleeperYears, ...yahooYears];
+}
+
+async function singleSeasonTableHtml(year){
+  const yahoo = YAHOO_SEASONS.find(y => y.season === year);
+  if(yahoo){
+    const map = TEAM_OWNER_BY_SEASON[year] || {};
+    const rows = yahoo.standings.slice().sort((a,b)=> b.w-a.w || (b.pf-b.pa)-(a.pf-a.pa));
+    const body = rows.map((s,i) => {
+      const owner = map[s.team];
+      return `<tr>
+        <td class="rank">${i+1}</td>
+        <td class="team-cell"><div><div class="team-name">${s.team}</div><div class="team-handle">${owner?ownerDisplayName(owner):""}</div></div></td>
+        <td class="num">${s.w}-${s.l}${s.t?`-${s.t}`:""}</td>
+        <td class="num">${s.pf.toFixed(1)}</td>
+        <td class="num">${s.pa.toFixed(1)}</td>
+      </tr>`;
+    }).join("");
+    return `<p class="sub">Yahoo era</p><table>
+      <thead><tr><th></th><th>Team</th><th class="num">Record</th><th class="num">Points For</th><th class="num">Points Against</th></tr></thead>
+      <tbody>${body}</tbody></table>`;
+  }
+  const entry = seasons.find(s => s.season === year);
+  const data = await loadSeasonCore(entry);
+  const rows = Object.values(data.teams).sort((a,b) =>
+    b.wins - a.wins || (b.fpts - b.fpts_against) - (a.fpts - a.fpts_against)
+  );
+  const started = rows.some(r => r.wins + r.losses + r.ties > 0);
+  const body = rows.map((t,i) => `
+    <tr>
+      <td class="rank">${i+1}</td>
+      <td class="team-cell"><div><div class="team-name">${t.name}</div><div class="team-handle">@${t.handle}</div></div></td>
+      <td class="num">${t.wins}-${t.losses}${t.ties?`-${t.ties}`:""}</td>
+      <td class="num">${t.fpts.toFixed(1)}</td>
+      <td class="num">${t.fpts_against.toFixed(1)}</td>
+    </tr>`).join("");
+  return `<p class="sub">${started ? "Live from Sleeper" : "Season hasn't started yet — showing draft-order roster list"}</p><table>
+    <thead><tr><th></th><th>Team</th><th class="num">Record</th><th class="num">Points For</th><th class="num">Points Against</th></tr></thead>
+    <tbody>${body}</tbody></table>`;
+}
+
+async function renderStandings(){
+  setMain(loadingMsg("Loading standings — computing all-time totals across every season…"));
+  try{
+    const totals = await computeAllTimeStandings();
+    const years = allSeasonYears();
+    const defaultYear = seasons.find(s => s.status !== "pre_draft" && s.status !== "drafting")?.season || years[0];
+    const rightBody = await singleSeasonTableHtml(defaultYear);
+    setMain(`
+      <div class="standings-grid">
+        <div class="panel">
+          <h2>Overall Standings</h2>
+          <p class="sub">All-time record across every Yahoo and Sleeper season on file</p>
+          ${allTimeTableHtml(totals)}
+        </div>
+        <div class="panel">
+          <h2>Season Standings</h2>
+          <div class="season-picker" style="margin:-4px 0 14px;">
+            <label style="font-size:12px;color:var(--ink-dim);font-family:'IBM Plex Mono',monospace;">YEAR</label>
+            <select id="standingsYearSelect">
+              ${years.map(y => `<option value="${y}" ${y===defaultYear?"selected":""}>${y}</option>`).join("")}
+            </select>
+          </div>
+          <div id="standingsYearBody">${rightBody}</div>
+        </div>
+      </div>`);
+    document.getElementById("standingsYearSelect").addEventListener("change", async (e) => {
+      const body = document.getElementById("standingsYearBody");
+      body.innerHTML = loadingMsg("Loading…");
+      body.innerHTML = await singleSeasonTableHtml(e.target.value);
+    });
+  }catch(e){ setMain(errorMsg("Couldn't load standings: " + e.message)); }
+}
+
+// ---------- MATCHUPS ----------
+async function renderMatchups(){
+  setMain(loadingMsg("Loading matchups…"));
+  try{
+    if(activeSeason == null){
+      activeSeason = seasons.find(s => s.status !== "pre_draft" && s.status !== "drafting")?.season || seasons[0].season;
+    }
+    const entry = seasons.find(s => s.season === activeSeason);
+    const data = await loadSeasonCore(entry);
+    const weeks = Array.from({length:17}, (_,i)=>i+1);
+    const weekBtns = weeks.map(w => `<button data-week="${w}" class="${w===activeWeek?'active':''}">Wk ${w}</button>`).join("");
+    const seasonYears = seasons.filter(s => s.status !== "pre_draft" && s.status !== "drafting").map(s => s.season);
+
+    let matchups = [];
+    try{ matchups = await getMatchups(activeSeason, activeWeek); }catch(e){}
+    const byId = {};
+    (matchups||[]).forEach(m => {
+      if(m.matchup_id == null) return;
+      (byId[m.matchup_id] = byId[m.matchup_id]||[]).push(m);
+    });
+    const pairs = Object.values(byId).filter(p => p.length===2);
+    let body;
+    if(!pairs.length){
+      body = `<div class="state-msg">No matchup data for Week ${activeWeek} yet.</div>`;
+    } else {
+      body = pairs.map(([a,b]) => {
+        const ta = data.teams[a.roster_id] || {name:"Unknown"};
+        const tb = data.teams[b.roster_id] || {name:"Unknown"};
+        const aw = a.points > b.points, bw = b.points > a.points;
+        return `<div class="matchup-row">
+          <div class="mt-team">${ta.name}</div>
+          <div class="mt-score ${aw?'win':''}">${(a.points??0).toFixed(1)}</div>
+          <div class="mt-vs">vs</div>
+          <div class="mt-score ${bw?'win':''}">${(b.points??0).toFixed(1)}</div>
+          <div class="mt-team right">${tb.name}</div>
+        </div>`;
+      }).join("");
+    }
+    setMain(`
+      <div class="panel">
+        <h2>Matchups</h2>
+        <p class="sub">Weekly scores, pulled live from Sleeper</p>
+        <div class="season-picker" style="margin:-4px 0 14px;">
+          <label style="font-size:12px;color:var(--ink-dim);font-family:'IBM Plex Mono',monospace;">SEASON</label>
+          <select id="matchupsYearSelect">
+            ${seasonYears.map(y => `<option value="${y}" ${y===activeSeason?"selected":""}>${y}</option>`).join("")}
+          </select>
+        </div>
+        <div class="week-picker" id="weekPicker">${weekBtns}</div>
+        ${body}
+      </div>`);
+    document.querySelectorAll("#weekPicker button").forEach(b=>{
+      b.addEventListener("click", ()=>{ activeWeek = parseInt(b.dataset.week); renderMatchups(); });
+    });
+    document.getElementById("matchupsYearSelect").addEventListener("change", (e)=>{
+      activeSeason = e.target.value; activeWeek = 1; renderMatchups();
+    });
+  }catch(e){ setMain(errorMsg("Couldn't load matchups: " + e.message)); }
+}
+
+// ---------- HISTORY ----------
+async function renderHistory(){
+  setMain(loadingMsg("Loading season history — this walks every prior season, give it a moment…"));
+  try{
+    const rowsHtml = [];
+    for(const entry of seasons){
+      if(entry.status === "pre_draft" || entry.status === "drafting"){
+        rowsHtml.push(`<div class="history-season"><div class="history-year">${entry.season}</div>
+          <div class="history-champ"><div class="label">Status</div><div class="val">Upcoming — not yet drafted</div></div></div>`);
+        continue;
+      }
+      const data = await loadSeasonCore(entry);
+      let champText = "—";
+      try{
+        const bracket = await getJSON(`${API}/league/${entry.league_id}/winners_bracket`);
+        const final = bracket.find(g => g.p === 1 && g.w);
+        if(final){
+          const champ = data.teams[final.w];
+          champText = champ ? champ.name : "—";
+        }
+      }catch(e){}
+      const rows = Object.values(data.teams).sort((a,b)=>b.wins-a.wins || (b.fpts-b.fpts_against)-(a.fpts-a.fpts_against));
+      const best = rows[0];
+      rowsHtml.push(`<div class="history-season">
+        <div class="history-year">${entry.season}</div>
+        <div class="history-champ"><div class="label">Champion</div><div class="val">${champText}</div></div>
+        <div class="history-champ"><div class="label">Best Record</div><div class="val">${best ? `${best.name} (${best.wins}-${best.losses})` : "—"}</div></div>
+      </div>`);
+    }
+    // Yahoo era (2017-2023) — frozen historical seasons from before the league moved to Sleeper
+    const yahooRowsHtml = YAHOO_SEASONS.slice().reverse().map(y => {
+      const best = y.standings.slice().sort((a,b)=> b.w-a.w || (b.pf-b.pa)-(a.pf-a.pa))[0];
+      return `<div class="history-season">
+        <div class="history-year">${y.season}</div>
+        <div class="history-champ"><div class="label">Champion</div><div class="val">${y.champion.team} (${y.champion.manager})</div></div>
+        <div class="history-champ"><div class="label">Best Record</div><div class="val">${best ? `${best.team} (${best.w}-${best.l})` : "—"}</div></div>
+      </div>`;
+    }).join("");
+    setMain(`
+      <div class="panel">
+        <h2>League History</h2>
+        <p class="sub">Champions and top regular-season records, season by season</p>
+        ${rowsHtml.join("")}
+        <p class="sub" style="margin-top:18px;">Yahoo era (pre-Sleeper) — imported from league archives</p>
+        ${yahooRowsHtml}
+      </div>`);
+  }catch(e){ setMain(errorMsg("Couldn't load history: " + e.message)); }
+}
+
+// ---------- ACHIEVEMENTS ----------
+async function renderAchievements(){
+  setMain(loadingMsg("Crunching every matchup across league history — this can take a bit…"));
+  try{
+    let highest = {pts:-1};
+    let blowout = {margin:-1};
+    let closest = {margin:99999};
+    const teamTotals = {}; // handle -> {name, wins, losses, pf}
+    const champs = {};     // handle -> count
+
+    for(const entry of seasons){
+      if(entry.status === "pre_draft" || entry.status === "drafting") continue;
+      const data = await loadSeasonCore(entry);
+      Object.values(data.teams).forEach(t => {
+        const rec = teamTotals[t.handle] || {name:t.name, handle:t.handle, wins:0, losses:0, pf:0};
+        rec.wins += t.wins; rec.losses += t.losses; rec.pf += t.fpts; rec.name = t.name;
+        teamTotals[t.handle] = rec;
+      });
+      try{
+        const bracket = await getJSON(`${API}/league/${entry.league_id}/winners_bracket`);
+        const final = bracket.find(g => g.p === 1 && g.w);
+        if(final){
+          const champ = data.teams[final.w];
+          if(champ) champs[champ.handle] = (champs[champ.handle]||0) + 1;
+        }
+      }catch(e){}
+
+      for(let w=1; w<=17; w++){
+        let m;
+        try{ m = await getMatchups(entry.season, w); }catch(e){ continue; }
+        if(!m || !m.length) continue;
+        const byId = {};
+        m.forEach(x => { if(x.matchup_id!=null) (byId[x.matchup_id]=byId[x.matchup_id]||[]).push(x); });
+        Object.values(byId).forEach(pair => {
+          pair.forEach(x => {
+            const t = data.teams[x.roster_id];
+            if(t && x.points > highest.pts) highest = {pts:x.points, team:t.name, season:entry.season, week:w};
+          });
+          if(pair.length===2){
+            const [a,b] = pair;
+            const ta = data.teams[a.roster_id], tb = data.teams[b.roster_id];
+            if(ta && tb && a.points!=null && b.points!=null){
+              const margin = Math.abs(a.points-b.points);
+              const winner = a.points>b.points?ta:tb, loser=a.points>b.points?tb:ta;
+              if(margin > blowout.margin) blowout = {margin, winner:winner.name, loser:loser.name, season:entry.season, week:w};
+              if(margin < closest.margin && (a.points>0||b.points>0)) closest = {margin, winner:winner.name, loser:loser.name, season:entry.season, week:w};
+            }
+          }
+        });
+      }
+    }
+    // Fold in Yahoo-era championships (2017-2023) for owners we can confidently map by name
+    YAHOO_SEASONS.forEach(y => {
+      const owner = YAHOO_MANAGER_TO_OWNER[y.champion.manager];
+      if(owner) champs[owner] = (champs[owner]||0) + 1;
+    });
+    const topChamp = Object.entries(champs).sort((a,b)=>b[1]-a[1])[0];
+    const topWinPct = Object.values(teamTotals).sort((a,b)=> (b.wins/(b.wins+b.losses||1)) - (a.wins/(a.wins+a.losses||1)))[0];
+
+    setMain(`
+      <div class="panel">
+        <h2>Achievements</h2>
+        <p class="sub">Records computed across every completed season on file</p>
+        <div class="trophy-grid">
+          <div class="trophy-card"><div class="trophy-label">Highest Single-Week Score</div>
+            <div class="trophy-value">${highest.pts>=0?highest.pts.toFixed(1):"—"}</div>
+            <div class="trophy-sub">${highest.team||""} · ${highest.season||""} Wk ${highest.week||""}</div></div>
+          <div class="trophy-card"><div class="trophy-label">Biggest Blowout</div>
+            <div class="trophy-value">${blowout.margin>=0?blowout.margin.toFixed(1):"—"} pts</div>
+            <div class="trophy-sub">${blowout.winner||""} over ${blowout.loser||""} · ${blowout.season||""} Wk ${blowout.week||""}</div></div>
+          <div class="trophy-card"><div class="trophy-label">Closest Finish</div>
+            <div class="trophy-value">${closest.margin<99999?closest.margin.toFixed(1):"—"} pts</div>
+            <div class="trophy-sub">${closest.winner||""} over ${closest.loser||""} · ${closest.season||""} Wk ${closest.week||""}</div></div>
+          <div class="trophy-card"><div class="trophy-label">Most Championships</div>
+            <div class="trophy-value">${topChamp ? topChamp[1] : "—"}</div>
+            <div class="trophy-sub">${topChamp ? (teamTotals[topChamp[0]]?.name || OWNER_NAMES[topChamp[0]] || topChamp[0]) : ""}</div></div>
+          <div class="trophy-card"><div class="trophy-label">Best All-Time Win %</div>
+            <div class="trophy-value">${topWinPct ? (100*topWinPct.wins/(topWinPct.wins+topWinPct.losses||1)).toFixed(0)+"%" : "—"}</div>
+            <div class="trophy-sub">${topWinPct ? `${topWinPct.name} (${topWinPct.wins}-${topWinPct.losses})` : ""}</div></div>
+        </div>
+      </div>`);
+  }catch(e){ setMain(errorMsg("Couldn't compute achievements: " + e.message)); }
+}
+
+// ---------- KEEPERS ----------
+// ---------- TRENDS ----------
+let trendsChartInstance = null;
+let teamChartInstance = null;
+
+async function getSeasonWeeklySeries(year){
+  // Returns { teamLabels: [...], weeks: [1,2,...], series: [{name, data:[...]}] }
+  const yahoo = YAHOO_WEEKLY[year];
+  if(yahoo){
+    const teams = Object.keys(yahoo);
+    const maxWeek = Math.max(...teams.map(t => Math.max(...Object.keys(yahoo[t]).map(Number))));
+    const weeks = Array.from({length:maxWeek}, (_,i)=>i+1);
+    const map = TEAM_OWNER_BY_SEASON[year] || {};
+    const series = teams.map(team => ({
+      name: team,
+      owner: map[team] || null,
+      data: weeks.map(w => yahoo[team][String(w)] ?? null),
+    }));
+    return { weeks, series };
+  }
+  // Sleeper season - fetch live
+  const entry = seasons.find(s => s.season === year);
+  const data = await loadSeasonCore(entry);
+  const teamsByRoster = data.teams;
+  const perTeam = {}; // roster_id -> array indexed by week-1
+  const weeks = [];
+  for(let w=1; w<=17; w++){
+    let m;
+    try{ m = await getMatchups(year, w); }catch(e){ break; }
+    if(!m || !m.length) break;
+    weeks.push(w);
+    m.forEach(x => {
+      if(!perTeam[x.roster_id]) perTeam[x.roster_id] = [];
+      perTeam[x.roster_id][w-1] = (x.points!=null) ? x.points : null;
+    });
+  }
+  const series = Object.keys(perTeam).map(rid => {
+    const t = teamsByRoster[rid];
+    return { name: t ? t.name : `Team ${rid}`, owner: t ? t.handle : null,
+      data: weeks.map(w => perTeam[rid][w-1] ?? null) };
+  });
+  return { weeks, series };
+}
+
+const TREND_COLORS = ["#F2C230","#4C8C5A","#B4483A","#6E8FB4","#B481C4","#D48A3F",
+  "#4CA3A3","#9AA84C","#C45B8F","#7A6ED8","#3FAF7A","#C4783F"];
+
+async function renderTrends(){
+  setMain(loadingMsg("Loading weekly scores…"));
+  try{
+    const years = allSeasonYears();
+    const defaultYear = seasons.find(s => s.status !== "pre_draft" && s.status !== "drafting")?.season || years[years.length-1];
+    setMain(`
+      <div class="panel">
+        <h2>Weekly Performance Trends</h2>
+        <p class="sub">Every team's score, week by week, for the selected season</p>
+        <div class="season-picker" style="margin:-4px 0 14px;">
+          <label style="font-size:12px;color:var(--ink-dim);font-family:'IBM Plex Mono',monospace;">YEAR</label>
+          <select id="trendsYearSelect">
+            ${years.map(y => `<option value="${y}" ${y===defaultYear?"selected":""}>${y}</option>`).join("")}
+          </select>
+        </div>
+        <div id="trendsChartWrap" style="position:relative; height:420px;">
+          <canvas id="trendsChart"></canvas>
+        </div>
+      </div>`);
+    await drawTrendsChart(defaultYear);
+    document.getElementById("trendsYearSelect").addEventListener("change", async (e) => {
+      document.getElementById("trendsChartWrap").innerHTML = '<canvas id="trendsChart"></canvas>';
+      await drawTrendsChart(e.target.value);
+    });
+  }catch(e){ setMain(errorMsg("Couldn't load trends: " + e.message)); }
+}
+
+async function drawTrendsChart(year){
+  const { weeks, series } = await getSeasonWeeklySeries(year);
+  const ctx = document.getElementById("trendsChart");
+  if(!ctx) return;
+  if(trendsChartInstance){ trendsChartInstance.destroy(); trendsChartInstance = null; }
+  trendsChartInstance = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: weeks.map(w => "Wk " + w),
+      datasets: series.map((s,i) => ({
+        label: s.owner ? ownerDisplayName(s.owner) : s.name,
+        data: s.data,
+        borderColor: TREND_COLORS[i % TREND_COLORS.length],
+        backgroundColor: TREND_COLORS[i % TREND_COLORS.length],
+        spanGaps: true,
+        tension: 0.15,
+        pointRadius: 2,
+        borderWidth: 2,
+      })),
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "nearest", intersect: false },
+      plugins: {
+        legend: { labels: { color: "#9CAB9E", font: { family: "IBM Plex Sans", size: 11 } } },
+        tooltip: { mode: "index", intersect: false },
+      },
+      scales: {
+        x: { ticks: { color: "#9CAB9E" }, grid: { color: "#1E2E23" } },
+        y: { ticks: { color: "#9CAB9E" }, grid: { color: "#1E2E23" }, title: { display: true, text: "Points", color: "#9CAB9E" } },
+      },
+    },
+  });
+}
+
+// ---------- TEAMS ----------
+async function getOwnerCareerData(owner){
+  const seasonsData = [];
+
+  // Yahoo era
+  for(const y of YAHOO_SEASONS){
+    const map = TEAM_OWNER_BY_SEASON[y.season] || {};
+    const team = Object.keys(map).find(t => map[t] === owner);
+    if(!team) continue;
+    const row = y.standings.find(s => s.team === team);
+    if(!row) continue;
+    const champ = YAHOO_MANAGER_TO_OWNER[y.champion.manager] === owner;
+    seasonsData.push({ year: y.season, team, wins: row.w, losses: row.l, ties: row.t || 0,
+      pf: row.pf, pa: row.pa, champion: champ, source: "yahoo" });
+  }
+
+  // Sleeper era
+  for(const entry of seasons){
+    if(entry.status === "pre_draft" || entry.status === "drafting") continue;
+    const data = await loadSeasonCore(entry);
+    const t = Object.values(data.teams).find(x => x.handle === owner);
+    if(!t) continue;
+    let champ = false;
+    try{
+      const bracket = await getJSON(`${API}/league/${entry.league_id}/winners_bracket`);
+      const final = bracket.find(g => g.p === 1 && g.w);
+      if(final && data.teams[final.w] && data.teams[final.w].handle === owner) champ = true;
+    }catch(e){}
+    seasonsData.push({ year: entry.season, team: t.name, wins: t.wins, losses: t.losses,
+      ties: t.ties || 0, pf: t.fpts, pa: t.fpts_against, champion: champ, source: "sleeper" });
+  }
+
+  seasonsData.sort((a,b) => a.year.localeCompare(b.year));
+
+  const totals = seasonsData.reduce((acc,s) => {
+    acc.wins += s.wins; acc.losses += s.losses; acc.ties += s.ties;
+    acc.pf += s.pf; acc.pa += s.pa; acc.titles += s.champion ? 1 : 0;
+    return acc;
+  }, {wins:0, losses:0, ties:0, pf:0, pa:0, titles:0});
+
+  // Weekly bests/worsts across career
+  let best = {score:-1}, worst = {score:999999};
+  for(const s of seasonsData){
+    if(s.source === "yahoo"){
+      const wk = (YAHOO_WEEKLY[s.year] && YAHOO_WEEKLY[s.year][s.team]) || {};
+      Object.entries(wk).forEach(([w,score]) => {
+        if(score == null) return;
+        if(score > best.score) best = {score, season:s.year, week:w};
+        if(score < worst.score) worst = {score, season:s.year, week:w};
+      });
+    } else {
+      const entry = seasons.find(e => e.season === s.year);
+      const data = await loadSeasonCore(entry);
+      const t = Object.values(data.teams).find(x => x.handle === owner);
+      if(!t) continue;
+      for(let w=1; w<=17; w++){
+        let m;
+        try{ m = await getMatchups(s.year, w); }catch(e){ break; }
+        if(!m || !m.length) break;
+        const mine = m.find(x => x.roster_id === t.roster_id);
+        if(mine && mine.points != null){
+          if(mine.points > best.score) best = {score:mine.points, season:s.year, week:w};
+          if(mine.points < worst.score) worst = {score:mine.points, season:s.year, week:w};
+        }
+      }
+    }
+  }
+
+  return { seasonsData, totals, best, worst };
+}
+
+async function renderTeams(){
+  const owners = Object.keys(OWNER_NAMES);
+  const defaultOwner = owners[0];
+  setMain(`
+    <div class="panel">
+      <h2>Team Explorer</h2>
+      <p class="sub">Career stats and trends for each franchise, across every Yahoo and Sleeper season</p>
+      <div class="season-picker" style="margin:-4px 0 14px;">
+        <label style="font-size:12px;color:var(--ink-dim);font-family:'IBM Plex Mono',monospace;">OWNER</label>
+        <select id="teamOwnerSelect">
+          ${owners.map(o => `<option value="${o}" ${o===defaultOwner?"selected":""}>${ownerDisplayName(o)}</option>`).join("")}
+        </select>
+      </div>
+      <div id="teamDetailBody">${loadingMsg("Loading team career data…")}</div>
+    </div>`);
+  await renderTeamDetail(defaultOwner);
+  document.getElementById("teamOwnerSelect").addEventListener("change", (e) => renderTeamDetail(e.target.value));
+}
+
+async function renderTeamDetail(owner){
+  const body = document.getElementById("teamDetailBody");
+  body.innerHTML = loadingMsg("Crunching career stats — this walks every season, give it a moment…");
+  try{
+    const { seasonsData, totals, best, worst } = await getOwnerCareerData(owner);
+    const pct = totals.wins / ((totals.wins + totals.losses) || 1);
+    const winPctStr = pct >= 1 ? "1.000" : pct.toFixed(3).replace(/^0/, "");
+    const keepers = KEEPERS_2025.filter(k => k.owner === owner);
+    const keeperRows = keepers.map(k => `
+      <tr>
+        <td>${k.player}</td><td>${k.pos}</td>
+        <td class="num">Rd ${k.round}</td>
+        <td class="num"><span class="year-tag ${k.year===1?'first':k.year>=3?'maxed':''}">${ordYear(k.year)}</span></td>
+      </tr>`).join("") || `<tr><td colspan="4" style="color:var(--ink-dim);">No keepers on file</td></tr>`;
+
+    body.innerHTML = `
+      <div class="trophy-grid" style="margin-bottom:24px;">
+        <div class="trophy-card"><div class="trophy-label">All-Time Record</div>
+          <div class="trophy-value">${totals.wins}-${totals.losses}${totals.ties?`-${totals.ties}`:""}</div>
+          <div class="trophy-sub">${winPctStr} win pct</div></div>
+        <div class="trophy-card"><div class="trophy-label">Championships</div>
+          <div class="trophy-value">${totals.titles || "—"}</div>
+          <div class="trophy-sub">${seasonsData.length} season${seasonsData.length!==1?'s':''} played</div></div>
+        <div class="trophy-card"><div class="trophy-label">Career Points For</div>
+          <div class="trophy-value">${totals.pf.toFixed(0)}</div>
+          <div class="trophy-sub">${(totals.pf/(seasonsData.length||1)).toFixed(1)} avg/season</div></div>
+        <div class="trophy-card"><div class="trophy-label">Best Week Ever</div>
+          <div class="trophy-value">${best.score>=0?best.score.toFixed(1):"—"}</div>
+          <div class="trophy-sub">${best.season||""} Wk ${best.week||""}</div></div>
+        <div class="trophy-card"><div class="trophy-label">Worst Week Ever</div>
+          <div class="trophy-value">${worst.score<999999?worst.score.toFixed(1):"—"}</div>
+          <div class="trophy-sub">${worst.season||""} Wk ${worst.week||""}</div></div>
+      </div>
+      <h3 class="section-h">Points For by Season</h3>
+      <div style="position:relative; height:280px; margin-bottom:26px;"><canvas id="teamPfChart"></canvas></div>
+      <h3 class="section-h">Season by Season</h3>
+      <table style="margin-bottom:26px;">
+        <thead><tr><th>Year</th><th>Team Name</th><th class="num">Record</th><th class="num">PF</th><th class="num">PA</th><th></th></tr></thead>
+        <tbody>${seasonsData.map(s => `
+          <tr>
+            <td>${s.year}</td><td>${s.team}</td>
+            <td class="num">${s.wins}-${s.losses}${s.ties?`-${s.ties}`:""}</td>
+            <td class="num">${s.pf.toFixed(1)}</td>
+            <td class="num">${s.pa.toFixed(1)}</td>
+            <td>${s.champion?"🏆":""}</td>
+          </tr>`).join("")}</tbody>
+      </table>
+      <h3 class="section-h">Current Keepers</h3>
+      <table>
+        <thead><tr><th>Player</th><th>Pos</th><th class="num">Round Kept</th><th class="num">Year</th></tr></thead>
+        <tbody>${keeperRows}</tbody>
+      </table>`;
+
+    if(teamChartInstance){ teamChartInstance.destroy(); teamChartInstance = null; }
+    const ctx = document.getElementById("teamPfChart");
+    teamChartInstance = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: seasonsData.map(s => s.year),
+        datasets: [{
+          label: "Points For",
+          data: seasonsData.map(s => s.pf),
+          backgroundColor: seasonsData.map(s => s.champion ? "#F2C230" : "#4C8C5A"),
+          borderRadius: 3,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false },
+          tooltip: { callbacks: { afterLabel: (ctx) => seasonsData[ctx.dataIndex].champion ? "🏆 Champion" : "" } } },
+        scales: {
+          x: { ticks: { color: "#9CAB9E" }, grid: { color: "#1E2E23" } },
+          y: { ticks: { color: "#9CAB9E" }, grid: { color: "#1E2E23" }, title: { display: true, text: "Points", color: "#9CAB9E" } },
+        },
+      },
+    });
+  }catch(e){ body.innerHTML = errorMsg("Couldn't load team data: " + e.message); }
+}
+
+function computeNextYearEligibility(owner){
+  const roster = WK18_ROSTERS[owner] || [];
+  const keeperMap = {};
+  KEEPERS_2025.filter(k => k.owner === owner).forEach(k => keeperMap[k.player] = k);
+
+  return roster.map(p => {
+    const asKeeper = keeperMap[p.player];
+    if(asKeeper){
+      const eligible = asKeeper.year < 3;
+      return {
+        player: p.player, pos: p.pos,
+        acquired: `Kept (Rd ${asKeeper.round} this year, ${ordYear(asKeeper.year)} yr)`,
+        nextRound: eligible ? asKeeper.round - 1 : null,
+        eligible,
+        reason: eligible ? "" : "Max 3 consecutive years reached",
+      };
+    }
+    if(p.draftpos === "FA"){
+      return { player: p.player, pos: p.pos, acquired: "Free agency pickup",
+        nextRound: 9, eligible: true, reason: "" };
+    }
+    const rd = p.draftpos;
+    if(typeof rd === "number" && rd <= 3){
+      return { player: p.player, pos: p.pos, acquired: `Drafted Rd ${rd}`,
+        nextRound: null, eligible: false, reason: "Rounds 1-3 never keeper-eligible" };
+    }
+    return { player: p.player, pos: p.pos, acquired: `Drafted Rd ${rd}`,
+      nextRound: (typeof rd === "number") ? rd - 1 : null, eligible: true, reason: "" };
+  }).sort((a,b) => {
+    if(a.eligible !== b.eligible) return a.eligible ? -1 : 1;
+    return (a.nextRound ?? 99) - (b.nextRound ?? 99);
+  });
+}
+
+function renderKeepers(){
+  const byOwner = {};
+  KEEPERS_2025.forEach(k => (byOwner[k.owner] = byOwner[k.owner]||[]).push(k));
+  const blocks = Object.keys(OWNER_NAMES).map(owner => {
+    const keepers = byOwner[owner] || [];
+    const rows = keepers.map(k => `
+      <tr>
+        <td>${k.player}</td>
+        <td>${k.pos}</td>
+        <td class="num">Rd ${k.round}</td>
+        <td class="num"><span class="year-tag ${k.year===1?'first':k.year>=3?'maxed':''}">${ordYear(k.year)}${k.year>=3?' · max':''}</span></td>
+      </tr>`).join("");
+
+    const eligibility = computeNextYearEligibility(owner);
+    const eligRows = eligibility.map(e => `
+      <tr class="${e.eligible?'':'ineligible-row'}">
+        <td>${e.player}</td>
+        <td>${e.pos}</td>
+        <td class="num">${e.acquired}</td>
+        <td class="num">${e.eligible ? `Rd ${e.nextRound}` : `<span style="color:var(--ink-dim); font-size:11px;">${e.reason}</span>`}</td>
+      </tr>`).join("");
+
+    return `<div class="team-block">
+      <h3>${OWNER_NAMES[owner]} <span class="handle">@${owner}</span></h3>
+      <div class="keepers-grid">
+        <div>
+          <p class="sub" style="margin:0 0 8px;">Current keepers (2025-26)</p>
+          <table>
+            <thead><tr><th>Player</th><th>Pos</th><th class="num">Round Kept</th><th class="num">Consecutive Year</th></tr></thead>
+            <tbody>${rows || `<tr><td colspan="4" style="color:var(--ink-dim);">No keepers on file</td></tr>`}</tbody>
+          </table>
+        </div>
+        <div>
+          <p class="sub" style="margin:0 0 8px;">Eligible for 2026-27 (end-of-season roster)</p>
+          <table>
+            <thead><tr><th>Player</th><th>Pos</th><th class="num">Acquired</th><th class="num">Cost Next Year</th></tr></thead>
+            <tbody>${eligRows || `<tr><td colspan="4" style="color:var(--ink-dim);">No roster data</td></tr>`}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+  setMain(`
+    <div class="panel">
+      <h2>Keepers — 2025-26</h2>
+      <p class="sub">Left: this year's actual keepers · Right: who's keeper-eligible for 2026-27 based on the Week 18 roster, and what it'd cost</p>
+      ${blocks}
+    </div>`);
+}
+
+// ---------- routing ----------
+function renderActive(){
+  if(activeTab==="standings") return renderStandings();
+  if(activeTab==="matchups") return renderMatchups();
+  if(activeTab==="trends") return renderTrends();
+  if(activeTab==="teams") return renderTeams();
+  if(activeTab==="history") return renderHistory();
+  if(activeTab==="achievements") return renderAchievements();
+  if(activeTab==="keepers") return renderKeepers();
+}
+
+document.querySelectorAll("#tabNav button").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    document.querySelectorAll("#tabNav button").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    activeTab = b.dataset.tab;
+    activeWeek = 1;
+    renderActive();
+  });
+});
+
+async function init(){
+  try{
+    seasons = await buildSeasonChain(STARTING_LEAGUE_ID);
+
+    // pick default season: most recent with actual games, else most recent
+    activeSeason = seasons.find(s => s.status !== "pre_draft" && s.status !== "drafting")?.season || seasons[0].season;
+
+    renderActive();
+  }catch(e){
+    setMain(errorMsg("Couldn't connect to Sleeper for league " + STARTING_LEAGUE_ID + ": " + e.message +
+      ". Double-check the league ID and that this league is public/accessible."));
+  }
+}
+init();
+</script>
+</body>
+</html>
