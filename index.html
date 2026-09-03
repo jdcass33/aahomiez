@@ -93,6 +93,20 @@ main{padding-top:28px;}
 .scouting-stat-label{font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; color:var(--ink-dim); letter-spacing:.05em; margin-bottom:3px;}
 .scouting-stat-value{font-family:'Oswald',sans-serif; font-size:22px; color:var(--gold);}
 .scouting-text{font-size:13.5px; line-height:1.55; color:var(--ink); margin:0;}
+.posrank-list{display:flex; flex-direction:column; gap:6px;}
+.posrank-row{display:flex; align-items:center; gap:10px; font-size:13px;}
+.posrank-pos{font-family:'Oswald',sans-serif; text-transform:uppercase; width:44px; flex-shrink:0; color:var(--ink);}
+.posrank-players{flex:1; color:var(--ink); font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.posrank-avg{color:var(--ink-dim); font-family:'IBM Plex Mono',monospace; font-size:11.5px; flex-shrink:0;}
+.posrank-badge{font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; color:#0A1A2E; padding:3px 9px; border-radius:3px; white-space:nowrap;}
+.notable-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:12px;}
+@media (max-width: 820px){ .notable-grid{grid-template-columns:1fr;} }
+.notable-card{background:var(--panel); border:1px solid var(--hair); border-radius:6px; padding:12px;}
+.notable-label{font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; color:var(--gold); letter-spacing:.05em; margin-bottom:4px;}
+.notable-name{font-family:'Oswald',sans-serif; font-size:15px; color:var(--ink); margin-bottom:6px;}
+.notable-pos{font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--ink-dim); font-weight:400;}
+.notable-blurb{font-size:12.5px; line-height:1.5; color:var(--ink-dim); margin:0;}
+.notable-blurb-empty{font-style:italic; opacity:.7;}
 .draft-row-label{font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--ink-dim); display:flex; align-items:center; justify-content:center;}
 .draft-cell{border-radius:4px; padding:4px 5px; min-height:46px; display:flex; flex-direction:column; justify-content:center; gap:1px; color:#fff; font-size:10px; box-shadow:inset 0 0 0 1px rgba(0,0,0,.25);}
 .draft-cell-pick{font-family:'IBM Plex Mono',monospace; font-size:8px; opacity:.85;}
@@ -2621,32 +2635,38 @@ async function computeDraftGrades(year, projRecords){
 
     const { compositionPenalty, holes, posCounts } = computeCompositionPenalty(ownerPicks);
 
-    results[owner] = { rawValue, compositionPenalty, finalScoreValue: rawValue - compositionPenalty, unknownAdpCount, posCounts, holes };
+    results[owner] = { rawValue, compositionPenalty, valueScore: rawValue - compositionPenalty, unknownAdpCount, posCounts, holes };
   });
 
-  // The draft grade (value + composition) and the projected record are computed
-  // fully independently — the record simulation never feeds into the value math
-  // above. Here we only cross-check that the two roughly agree: each team gets a
-  // percentile rank from its value score AND a separate percentile rank from its
-  // projected wins, and the final grade blends them at 80/20. That's enough to
-  // pull a genuine outlier back toward the middle without letting a noisy or
-  // buggy record projection override an otherwise sound value assessment.
-  const valueRanked = Object.entries(results).sort((a,b) => b[1].finalScoreValue - a[1].finalScoreValue);
-  const n = valueRanked.length;
+  const n = Object.keys(results).length;
+
+  // Component A: draft-day value — did they beat the market on their picks (plus
+  // whether the resulting roster is even legally fieldable, via composition).
+  const valueRanked = Object.entries(results).sort((a,b) => b[1].valueScore - a[1].valueScore);
   const valuePercentile = {};
   valueRanked.forEach(([owner], i) => { valuePercentile[owner] = i / n; });
 
-  let recordPercentile = null;
+  // Component B: roster quality — genuinely independent of draft cost. Uses the
+  // same real-Sleeper-weekly-projections, optimal-lineup-for-the-league's-actual-
+  // roster-structure figure already computed for the season projection
+  // (projRecords[owner].weeklyPts), compared across the league. A team can nail
+  // great value on modest players (good value score, average quality) or overpay
+  // for elite talent (poor value score, strong quality) — both are real and both
+  // should show up in the grade, not just one of them.
+  let qualityPercentile = null;
+  const leagueAvgWeeklyPts = projRecords ? Object.values(projRecords).reduce((s,r) => s + r.weeklyPts, 0) / n : null;
   if(projRecords){
-    const recordRanked = Object.entries(projRecords).sort((a,b) => b[1].wins - a[1].wins);
-    recordPercentile = {};
-    recordRanked.forEach(([owner], i) => { recordPercentile[owner] = i / n; });
+    const qualityRanked = Object.entries(projRecords).sort((a,b) => b[1].weeklyPts - a[1].weeklyPts);
+    qualityPercentile = {};
+    qualityRanked.forEach(([owner], i) => { qualityPercentile[owner] = i / n; });
   }
 
   Object.entries(results).forEach(([owner, r]) => {
     const vp = valuePercentile[owner];
-    const rp = recordPercentile ? recordPercentile[owner] : vp;
-    r.blendedPercentile = 0.8 * vp + 0.2 * rp;
+    const qp = qualityPercentile ? qualityPercentile[owner] : vp;
+    r.blendedPercentile = 0.5 * vp + 0.5 * qp; // value and quality weighted equally
+    r.qualityWeeklyPts = projRecords && projRecords[owner] ? projRecords[owner].weeklyPts : null;
+    r.leagueAvgWeeklyPts = leagueAvgWeeklyPts;
     r.projectedWins = projRecords && projRecords[owner] ? projRecords[owner].wins : null;
   });
 
@@ -2698,6 +2718,79 @@ function computePositionalStrength(picks, owners){
     leagueAvg[pos] = Math.round(owners.reduce((s,o) => s + normalized[o][pos], 0) / owners.length);
   });
   return { normalized, leagueAvg };
+}
+
+// Ranks each team's position GROUPS against the rest of the league, by average
+// projected points-per-game PER PLAYER at that position (not a group total, so a
+// team with 5 mediocre WRs isn't credited over a team with 2 great ones). Only
+// positions a team actually drafted are ranked for them.
+// Reflects the league's real starting lineup structure, not a flat per-player
+// average: RB is the combined value of the team's top 2 RBs (since 2 RB start),
+// WR is the combined value of the top 2 WRs, QB/TE/K/DEF are each just the single
+// best (since only 1 starts), and FLEX is a separate category — whichever
+// RB/WR/TE is left over after the slots above are filled scores highest.
+const POSITION_GROUP_CATEGORIES = ["QB","RB","WR","TE","FLEX","K","DEF"];
+
+function computePositionGroupRankings(picks, owners){
+  const byOwnerPos = {};
+  picks.forEach(p => {
+    const proj = getSeasonProjection(p.player);
+    const perGame = (proj && proj.pts != null) ? proj.pts/17 : (REPLACEMENT_SEASON_PTS[p.pos] ?? 80)/17;
+    byOwnerPos[p.owner] = byOwnerPos[p.owner] || {};
+    (byOwnerPos[p.owner][p.pos] = byOwnerPos[p.owner][p.pos] || []).push({name: p.player, rate: perGame});
+  });
+
+  const totals = {}; // owner -> {cat: {value, players:[names]}}
+  owners.forEach(o => {
+    const posMap = byOwnerPos[o] || {};
+    const sorted = {};
+    Object.entries(posMap).forEach(([pos, list]) => { sorted[pos] = list.slice().sort((a,b) => b.rate - a.rate); });
+
+    const takeTop = (pos, n) => (sorted[pos]||[]).slice(0, n);
+    const sumRate = (list) => list.reduce((s,x) => s + x.rate, 0);
+
+    const qbTop = takeTop("QB", LEAGUE_BASE_STARTERS.QB);
+    const rbTop = takeTop("RB", LEAGUE_BASE_STARTERS.RB);
+    const wrTop = takeTop("WR", LEAGUE_BASE_STARTERS.WR);
+    const teTop = takeTop("TE", LEAGUE_BASE_STARTERS.TE);
+    const kTop = takeTop("K", LEAGUE_BASE_STARTERS.K);
+    const defTop = takeTop("DEF", LEAGUE_BASE_STARTERS.DEF);
+
+    const remaining = [
+      ...(sorted.RB||[]).slice(LEAGUE_BASE_STARTERS.RB),
+      ...(sorted.WR||[]).slice(LEAGUE_BASE_STARTERS.WR),
+      ...(sorted.TE||[]).slice(LEAGUE_BASE_STARTERS.TE),
+    ].sort((a,b) => b.rate - a.rate);
+    const flexTop = remaining.slice(0, LEAGUE_FLEX_SLOTS);
+
+    totals[o] = {
+      QB: {value: sumRate(qbTop), players: qbTop.map(x=>x.name)},
+      RB: {value: sumRate(rbTop), players: rbTop.map(x=>x.name)},
+      WR: {value: sumRate(wrTop), players: wrTop.map(x=>x.name)},
+      TE: {value: sumRate(teTop), players: teTop.map(x=>x.name)},
+      FLEX: {value: sumRate(flexTop), players: flexTop.map(x=>x.name)},
+      K: {value: sumRate(kTop), players: kTop.map(x=>x.name)},
+      DEF: {value: sumRate(defTop), players: defTop.map(x=>x.name)},
+    };
+  });
+
+  const rankings = {}; // cat -> [[owner, {value,players}], ...] sorted best-first
+  POSITION_GROUP_CATEGORIES.forEach(cat => {
+    const entries = owners.filter(o => totals[o][cat] && totals[o][cat].value > 0).map(o => [o, totals[o][cat]]);
+    entries.sort((a,b) => b[1].value - a[1].value);
+    rankings[cat] = entries;
+  });
+  return { totals, rankings };
+}
+
+// Green (best) -> yellow (middle) -> red (worst), interpolated by rank fraction.
+function rankColor(rank, total){
+  if(total <= 1) return "rgb(242,194,48)";
+  const frac = (rank - 1) / (total - 1);
+  const green = [76,140,90], yellow = [242,194,48], red = [180,72,58];
+  const lerp = (c1,c2,t) => c1.map((v,i) => Math.round(v + (c2[i]-v)*t));
+  const rgb = frac <= 0.5 ? lerp(green, yellow, frac/0.5) : lerp(yellow, red, (frac-0.5)/0.5);
+  return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
 }
 
 // ---------- SEASON PROJECTION (points + record) ----------
@@ -2838,7 +2931,7 @@ async function computeSeasonProjections(picks, owners, year){
       // the time. A fully deterministic model can (and did) produce impossible
       // sweeps like 14-0 or 0-14 from only modest, consistent per-week edges.
       const diff = weekTotals[ownerA] - weekTotals[ownerB];
-      const winProbA = 1 / (1 + Math.exp(-diff / 15)); // ~15 pt edge in a single week ≈ 73% win prob
+      const winProbA = 1 / (1 + Math.exp(-diff / 8)); // ~8 pt edge in a single week ≈ 73% win prob (sharper than before — a real 14-game schedule against varying single opponents compresses toward .500 more than an averaged-field comparison would, so this needed to be more decisive to produce real season-long spread)
       expectedWins[ownerA] += winProbA;
       expectedWins[ownerB] += (1 - winProbA);
     });
@@ -2858,10 +2951,225 @@ async function computeSeasonProjections(picks, owners, year){
 }
 
 // ---------- SCOUTING REPORT (template-based, varies per team) ----------
+// Real researched storylines for the most fantasy-relevant players in this year's
+// keeper pool (current as of late Aug 2026). This is a hand-curated snapshot, not
+// a live feed — it covers the most notable names, not every drafted player, and
+// will read as stale as the season moves along.
+const PLAYER_STORYLINES = {
+  [normPlayerName("Brock Bowers")]: "Entering year three as the consensus TE1, a full offseason removed from the knee issues that limited him late last year, and set up as Las Vegas's clear top target in a thin passing game.",
+  [normPlayerName("Puka Nacua")]: "Coming off a league-leading WR1 season, though a lingering groin/psoas issue has kept him out of practice for stretches of camp.",
+  [normPlayerName("Jaxon Smith-Njigba")]: "Fresh off an Offensive Player of the Year campaign and a record receiver extension — a true WR1 anchor in Seattle now.",
+  [normPlayerName("Nico Collins")]: "Quietly played at a WR1 level for three straight seasons; the offense around him, not his own talent, is the only real question mark.",
+  [normPlayerName("De'Von Achane")]: "Signed a four-year, $68M extension after his first 1,000-yard rushing season, though a QB change to Malik Willis could trim his receiving role slightly.",
+  [normPlayerName("Chase Brown")]: "Coming off his first 1,000-yard season and firmly the workhorse in Cincinnati, even through Joe Burrow's absences last year.",
+  [normPlayerName("Ladd McConkey")]: "A rookie-year star who took a step back in year two — the situation around him has improved this offseason, and he's widely viewed as a buy-low bounce-back candidate.",
+  [normPlayerName("Quinshon Judkins")]: "Working back from a serious ankle/fibula injury suffered late last season; his workhorse role in Cleveland looks secure if he's fully healthy.",
+  [normPlayerName("Bucky Irving")]: "Fully cleared from offseason shoulder surgery and firmly atop Tampa Bay's backfield, projected for a full workhorse workload.",
+  [normPlayerName("Trey McBride")]: "Neck and neck with Bowers for the TE1 crown — part of a clear top tier at the position entering 2026.",
+  [normPlayerName("Cam Skattebo")]: "Returning from a gruesome ankle/fibula injury but reportedly on track for Week 1; the Giants adding Najee Harris this offseason is a mild workload concern worth watching.",
+  [normPlayerName("Jameson Williams")]: "A boom-bust field-stretcher in Detroit's loaded passing game — the talent is real, but the target competition keeps his weekly floor volatile.",
+  [normPlayerName("Ja'Marr Chase")]: "Firmly in the top overall WR conversation again after another dominant season — a 30%+ target share and elite touchdown upside with a healthy Joe Burrow throwing to him.",
+  [normPlayerName("Kyle Pitts")]: "A new coaching staff and a QB change to Kirk Cousins have analysts buzzing about a real breakout — early camp reports show heavy target volume in Atlanta's new offense.",
+  [normPlayerName("Marvin Harrison Jr.")]: "A disappointing rookie year dropped his price significantly, but a new offensive coordinator and better health this offseason make him a classic buy-low candidate.",
+  [normPlayerName("Jahmyr Gibbs")]: "Coming off a huge season and expected to see even more volume with David Montgomery gone from Detroit's backfield.",
+  [normPlayerName("RJ Harvey")]: "A rookie back stepping into a real role in Denver's backfield, one of the more talked-about names in this year's deep rookie RB class.",
+  [normPlayerName("Bijan Robinson")]: "One of a handful of true 1.01-caliber players in fantasy this year, alongside Gibbs, Chase, and Nacua — an elite three-down workload in Atlanta.",
+  [normPlayerName("Kyren Williams")]: "Squarely in a debated, crowded tier of backs — after a strong 2025, his ADP reflects real competition for touches in the Rams backfield.",
+  [normPlayerName("Colston Loveland")]: "Finished his rookie year on fire — 21+ fantasy points and double-digit targets in each of his final four games — and is being talked about as Caleb Williams's top target entering year two.",
+  [normPlayerName("Christian McCaffrey")]: "The reigning overall PPR RB1 when healthy, though durability remains the swing factor on his outlook every year.",
+  [normPlayerName("Jonathan Taylor")]: "The epitome of a workhorse — a third straight season of 1,400+ rushing yards and over 370 receiving yards, with Shane Steichen's offense finally settled at quarterback.",
+  [normPlayerName("Tetairoa McMillan")]: "A rare rookie receiver who produced immediately, essentially playing as Carolina's only real receiving weapon as a rookie.",
+  [normPlayerName("Jeremiyah Love")]: "A dramatically hyped rookie back who's dealing with a high-ankle sprain in camp — the talent is real, but early-season availability is worth watching closely.",
+  [normPlayerName("Harold Fannin Jr.")]: "Already flashed elite target-earning ability as a rookie and now steps into an even clearer role after a coaching change in Cleveland.",
+  [normPlayerName("James Cook")]: "One of the top-four workhorse backs in fantasy heading into 2026, in a high-powered Buffalo offense.",
+  [normPlayerName("Ashton Jeanty")]: "A disappointing-by-hype rookie season (14.4 PPG vs. a 16-17 PPG expectation) — but analysts note the situation, not his talent, was the bigger issue on a struggling Raiders offense.",
+  [normPlayerName("Saquon Barkley")]: "Still a dangerous workhorse in Philadelphia's revamped wide-zone scheme, with mileage the only real concern at this stage of his career.",
+  [normPlayerName("Emeka Egbuka")]: "A rookie season of two halves — dominant through five weeks, then fading hard — but a healthier Baker Mayfield and Mike Evans's departure set him up as Tampa Bay's clear top target in 2026.",
+  [normPlayerName("Omarion Hampton")]: "A rookie season disrupted by injury, but his draft pedigree and flashes of ability make a real Year 2 breakout easy to envision.",
+  [normPlayerName("Amon-Ra St. Brown")]: "In the conversation for the single best receiver in football — elite efficiency without needing gaudy target volume to produce.",
+  [normPlayerName("Tyler Warren")]: "A rookie who looked like the best tight end in his class through the first half of last season before fading — the volume (21% target share) was real, and it could climb even higher in year two.",
+  [normPlayerName("CeeDee Lamb")]: "Widely viewed as one of the best receivers in football — Dallas's passing offense with Dak Prescott gives him a high floor even with George Pickens sharing targets.",
+  [normPlayerName("TreVeyon Henderson")]: "A rookie back mentioned frequently in New England's backfield conversation as a change-of-pace complement.",
+  [normPlayerName("Justin Jefferson")]: "No longer in the true top-tier WR conversation after a down year, but a QB change to Kyler Murray has real bounce-back believers.",
+  [normPlayerName("Jonathon Brooks")]: "A talented back working back from injury, mentioned as a name to watch in a crowded Panthers backfield.",
+  [normPlayerName("Jordyn Tyson")]: "A rookie receiver in New Orleans's rebuilding passing game — a true late-round dart throw.",
+  [normPlayerName("Tucker Kraft")]: "Was having a monster season before a torn ACL — tight ends often bounce back well from that specific injury, making him a real name to watch for a big year two.",
+  // Quarterbacks
+  [normPlayerName("Jalen Hurts")]: "Coming off a down 2025 where he pulled back on running the ball — if that trend continues it's harder to justify an early price, though he'd topped 20 PPG in every prior season as a starter.",
+  [normPlayerName("Jaxson Dart")]: "Entering year two after a highly productive rookie campaign — some analysts see a Drake Maye-style sophomore leap in the cards for the Giants QB1.",
+  [normPlayerName("Caleb Williams")]: "A tightly packed tier with Herbert, Prescott, and Lawrence — his outlook hinges on continued growth in Chicago's offense in year two.",
+  [normPlayerName("Matthew Stafford")]: "Led all QBs in fantasy points last season at 23.9 PPG, his best mark since 2021 — turns 38 in February, with durability the only real question.",
+  [normPlayerName("Lamar Jackson")]: "A two-time MVP who played just 13 games last season due to injury; entering 2026 healthy with a new playcaller (Declan Doyle) calling plays.",
+  [normPlayerName("Patrick Mahomes")]: "Expected ready for Week 1 despite offseason knee surgery — still working back to full health, worth watching in camp.",
+  [normPlayerName("Brock Purdy")]: "Squarely in the QB1-streaming tier alongside Dart, Herbert, and Lawrence for 2026.",
+  [normPlayerName("Joe Burrow")]: "One of the most talented passers in football when healthy, but has missed at least seven games in two of his past three seasons — the O-line is finally solid, which raises the ceiling if he stays upright.",
+  [normPlayerName("Drake Maye")]: "Outscored every QB but Josh Allen last season and adds A.J. Brown and Romeo Doubs to his weapons this offseason — a legitimate breakout campaign already, with more help on the way.",
+  [normPlayerName("Jayden Daniels")]: "Was QB4 overall as a rookie before an injury-riddled 2025 limited him to six full-snap games — the ceiling is a peak-Lamar-Jackson type season if he stays healthy.",
+  [normPlayerName("Josh Allen")]: "The clear fantasy QB1 — top-two finish in four of the past six seasons, never lower than third in that span.",
+  [normPlayerName("Dak Prescott")]: "Tied for the best odds in the league to lead the NFL in passing yards; a walking 4,000-yard passer when healthy, with Lamb and Pickens giving him two legitimate outlets.",
+  // Running backs
+  [normPlayerName("Breece Hall")]: "A talented back whose per-touch efficiency has been up and down — mentioned in the same tier as Kyren Williams and Josh Jacobs entering 2026.",
+  [normPlayerName("David Montgomery")]: "A steady, high-floor Houston backfield piece, though touches could be squeezed if the Texans lean more on their passing weapons.",
+  [normPlayerName("J.K. Dobbins")]: "One of two backs (with RJ Harvey) to watch in Denver's backfield mix this season.",
+  [normPlayerName("Tony Pollard")]: "A top-30 fantasy RB for four straight seasons across two different teams — unglamorous but reliable as Tennessee's clear RB1 with minimal competition for touches.",
+  [normPlayerName("Rhamondre Stevenson")]: "Still trusted in pass protection and expected to hold a meaningful role in New England's backfield, which caps rookie TreVeyon Henderson's ceiling somewhat.",
+  [normPlayerName("Javonte Williams")]: "Landed in Dallas this offseason as part of a running back mix worth monitoring as camp settles the pecking order.",
+  [normPlayerName("Derrick Henry")]: "Still rolling at 32 — a top-7 fantasy RB last season, and the Ravens signed him to a two-year extension this offseason, a real vote of confidence.",
+  [normPlayerName("Jaylen Warren")]: "Expected to split Pittsburgh's backfield work with Rico Dowdle this season.",
+  [normPlayerName("Jadarian Price")]: "A first-round rookie pick in Seattle who profiles as a real athletic talent, with real upside if he carves out a lead role.",
+  [normPlayerName("Kenneth Walker III")]: "Moved to Kansas City this offseason after a Super Bowl-winning run in Seattle — buzz is building around a heavy workload in Andy Reid's offense.",
+  [normPlayerName("Chuba Hubbard")]: "Carolina's reliable lead back, with rookie Jonathon Brooks lurking as a change-of-pace complement worth monitoring for touches.",
+  [normPlayerName("Justin Herbert")]: "Paired with a new offensive coordinator this offseason — Mike McDaniel's scheme, which once got a healthy Tua Tagovailoa to 4,600 yards, could unlock a real ceiling for a QB this talented.",
+  // Wide receivers
+  [normPlayerName("Courtland Sutton")]: "Now clearly Denver's No. 2 receiving option after the team traded for Jaylen Waddle — still gets targets, but the ceiling has come down.",
+  [normPlayerName("Rashee Rice")]: "Recovering from knee surgery this offseason, which adds a real availability question mark alongside his talent.",
+  [normPlayerName("Garrett Wilson")]: "Missed time to injury last year but should have better quarterback play in 2026, which could unlock a return to his prior 1,000-yard pace.",
+  [normPlayerName("DeVonta Smith")]: "Gets a real fantasy boost after Philadelphia traded A.J. Brown to New England — projected to finally operate as the Eagles' true No. 1 receiver.",
+  [normPlayerName("Alec Pierce")]: "Turned a 2025 breakout into a four-year, $116 million extension with Indianapolis — a clear sign of how the team views his role going forward.",
+  [normPlayerName("Malik Nabers")]: "Coming back from a torn ACL/meniscus that ended his 2025 season after just four games — was playing at a WR9 pace before the injury, with real bounce-back upside if healthy.",
+  [normPlayerName("Rome Odunze")]: "Chicago's field-stretching complement in a receiver room now sharing snaps with rookie hype like Colston Loveland and Luther Burden.",
+  [normPlayerName("Zay Flowers")]: "Posted a career-high 1,211 receiving yards last season — a real value if his ADP doesn't fully reflect that leap.",
+  [normPlayerName("Terry McLaurin")]: "Still the focal point of Washington's passing game when healthy, though a quad injury limited him to 10 games last season.",
+  [normPlayerName("George Pickens")]: "Took full advantage of CeeDee Lamb's injury last season with dominant weeks, and maintained that form once Lamb returned — real WR1 upside as Dallas's clear second option.",
+  [normPlayerName("Jaylen Waddle")]: "Traded from Miami to Denver this offseason — a fresh start that immediately projects him as Bo Nix's top receiving option.",
+  [normPlayerName("A.J. Brown")]: "Traded from Philadelphia to New England this offseason, reuniting with head coach Mike Vrabel and pairing with the best QB (Drake Maye) he's played with.",
+  [normPlayerName("Tee Higgins")]: "Back-to-back seasons with double-digit touchdowns as a legitimate big-play threat alongside Ja'Marr Chase.",
+  [normPlayerName("Quentin Johnston")]: "Part of the Chargers' receiving corps behind Ladd McConkey, still looking to establish himself as a consistent weekly contributor.",
+  // Tight ends
+  [normPlayerName("Travis Kelce")]: "The oldest TE in the league at 37, with three years since his last top-five finish — still fantasy relevant off name recognition and Mahomes's trust, but clearly declining.",
+  [normPlayerName("Dallas Goedert")]: "A good value at his current price after catching a career-high 11 touchdown passes last season.",
+  [normPlayerName("George Kittle")]: "Coming off a torn Achilles at age 33, which dropped his price — but he's healthy now and has been arguably the best all-around TE in football this decade.",
+  [normPlayerName("Sam LaPorta")]: "Looking to regain his rookie-year form under a new offensive coordinator (Drew Petzing) after two seasons closer to replacement level.",
+  [normPlayerName("Isaiah Likely")]: "Moved from Baltimore to the Giants this offseason and steps into a true starting role for the first time in his career.",
+  // Flex-pool depth pieces
+  [normPlayerName("Parker Washington")]: "A depth piece in Jacksonville's receiving room, still working to carve out a consistent weekly role.",
+  [normPlayerName("Kyle Monangai")]: "A depth back in Chicago's crowded backfield mix, competing for touches behind the primary ball-carriers.",
+  [normPlayerName("DJ Moore")]: "A steady if unspectacular contributor in Chicago's passing game, with per-target efficiency the main swing factor on his outlook.",
+  [normPlayerName("Luther Burden III")]: "A rookie season of growing pains in a crowded Chicago receiver room — banged up in camp this summer but expected ready for Week 1.",
+  [normPlayerName("Bhayshul Tuten")]: "A young Jacksonville back some analysts see as a potential league-winner if he claims a larger share of the backfield work.",
+  [normPlayerName("Chris Olave")]: "Posted the best fantasy season of his career last year (WR6 finish, a career-high 9 touchdowns) and should again lead a New Orleans offense that's trending up.",
+  [normPlayerName("Travis Etienne")]: "Now with New Orleans after previously anchoring Jacksonville's backfield — a change of scenery worth monitoring as his role there settles.",
+};
+
+// Curated "interesting prospect" per team for the one-time post-draft snapshot —
+// this category is inherently a judgment call (rookie hype, bounce-back buzz),
+// not something derivable purely from the numbers, so it's hand-picked per team.
+const FEATURED_PROSPECTS = {
+  matthew3400: "Marvin Harrison Jr.",
+  vgupt: "RJ Harvey",
+  chadillac004: "Colston Loveland",
+  rklorch225: "Tetairoa McMillan",
+  bleagle24: "Harold Fannin Jr.",
+  norsworthyryan: "Ashton Jeanty",
+  jmrobe: "Emeka Egbuka",
+  drvoorhees: "Omarion Hampton",
+  feman99: "Tyler Warren",
+  jmonk20: "TreVeyon Henderson",
+  jdcass33: "Jonathon Brooks",
+  ffchappyonships: "Tucker Kraft",
+};
+
+// Ranks a player against others AT THEIR OWN POSITION (not raw points), so a top-5
+// WR and a top-5 RB are compared on equal footing instead of every team's QB
+// winning "best player" purely because QBs score more raw fantasy points than any
+// other position. Combined with the same POS_VALUE_WEIGHT used in grading, since
+// being the literal #1 kicker still shouldn't outrank a merely-great RB or WR.
+let POSITIONAL_PERCENTILE_CACHE = null;
+function getPositionalQualityScore(playerName, pos){
+  if(!POSITIONAL_PERCENTILE_CACHE){
+    POSITIONAL_PERCENTILE_CACHE = {};
+    if(typeof SEASON_PROJECTIONS_2026 !== "undefined"){
+      const byPos = {};
+      Object.entries(SEASON_PROJECTIONS_2026).forEach(([name, info]) => {
+        (byPos[info.pos] = byPos[info.pos] || []).push({name, pts: info.pts});
+      });
+      Object.entries(byPos).forEach(([p, list]) => {
+        list.sort((a,b) => b.pts - a.pts);
+        list.forEach((x, i) => {
+          POSITIONAL_PERCENTILE_CACHE[normPlayerName(x.name)] = 1 - i / list.length;
+        });
+      });
+    }
+  }
+  const percentile = POSITIONAL_PERCENTILE_CACHE[normPlayerName(playerName)] ?? 0;
+  return percentile * (POS_VALUE_WEIGHT[pos] ?? 1.0);
+}
+
+function getFeaturedPlayers(owner, ownerPicks){
+  const withQuality = ownerPicks.map(p => ({...p, quality: getPlayerQuality(p.player), posScore: getPositionalQualityScore(p.player, p.pos)}));
+  const bestPlayer = withQuality.slice().sort((a,b) => b.posScore - a.posScore)[0];
+  const keepers = withQuality.filter(p => p.keeper);
+  const notableKeeper = keepers.length ? keepers.slice().sort((a,b) => b.quality - a.quality)[0] : null;
+  const prospectName = FEATURED_PROSPECTS[owner];
+  const prospect = prospectName ? ownerPicks.find(p => normPlayerName(p.player) === normPlayerName(prospectName)) : null;
+  return { bestPlayer, notableKeeper, prospect };
+}
+
+function notablePlayersHtml(owner, ownerPicks){
+  const { bestPlayer, notableKeeper, prospect } = getFeaturedPlayers(owner, ownerPicks);
+  const cards = [
+    bestPlayer ? {label:"Best Player Overall", p:bestPlayer} : null,
+    notableKeeper ? {label:"Notable Keeper", p:notableKeeper} : null,
+    prospect ? {label:"Interesting Prospect", p:prospect} : null,
+  ].filter(Boolean);
+  if(!cards.length) return "";
+  const rows = cards.map(c => {
+    const storyline = PLAYER_STORYLINES[normPlayerName(c.p.player)];
+    return `<div class="notable-card">
+      <div class="notable-label">${c.label}</div>
+      <div class="notable-name">${c.p.player} <span class="notable-pos">${c.p.pos}${c.p.keeper?' · K':''}</span></div>
+      ${storyline ? `<p class="notable-blurb">${storyline}</p>` : `<p class="notable-blurb notable-blurb-empty">No researched storyline on file for this player.</p>`}
+    </div>`;
+  }).join("");
+  return `
+    <p class="sub" style="margin:16px 0 8px;">Notable Players</p>
+    <div class="notable-grid">${rows}</div>`;
+}
+
 function seededPick(arr, seedStr){
   let h = 0;
   for(let i=0;i<seedStr.length;i++) h = (h * 31 + seedStr.charCodeAt(i)) >>> 0;
   return arr[h % arr.length];
+}
+
+// Assesses the keeper class specifically — are they a genuine foundation for the
+// team, or just complementary value? — and separately calls out the single best
+// player on the roster (keeper or not), splicing in real player storylines where
+// we have them researched.
+function buildKeeperNote(owner, ownerPicks){
+  const keepers = ownerPicks.filter(p => p.keeper);
+  const allWithQuality = ownerPicks.map(p => ({...p, quality: getPlayerQuality(p.player)}));
+  const bestPlayerOverall = allWithQuality.slice().sort((a,b) => b.quality - a.quality)[0];
+  if(!bestPlayerOverall) return "";
+
+  let text = "";
+  if(keepers.length){
+    const eliteKeepers = keepers.filter(p => getPlayerQuality(p.player) > 200);
+    if(eliteKeepers.length){
+      text = `Keeping ${eliteKeepers.map(p=>p.player).join(" and ")} gives this roster a genuine foundation — exactly the kind of player worth building a whole draft strategy around`;
+    } else {
+      text = `The keeper class here (${keepers.map(p=>p.player).join(", ")}) reads as solid depth rather than a true cornerstone`;
+    }
+    const keeperDeltas = keepers.map(p => {
+      const adpInfo = getADP(p.player);
+      const delta = (adpInfo && adpInfo.consensus_adp != null) ? (p.overall - adpInfo.consensus_adp) : null;
+      return {...p, delta};
+    }).filter(p => p.delta != null);
+    const cheapestKeeper = keeperDeltas.sort((a,b) => b.delta - a.delta)[0];
+    if(cheapestKeeper && cheapestKeeper.delta > 20){
+      text += `, and locking in ${cheapestKeeper.player} at a Round ${cheapestKeeper.round} price is exceptional value on its own`;
+    }
+    text += ".";
+  }
+
+  const bestIsKeeper = keepers.some(p => p.player === bestPlayerOverall.player);
+  if(!bestIsKeeper){
+    text += ` ${text?"Beyond the keepers, the":"The"} best player on this roster is ${bestPlayerOverall.player}.`;
+  }
+
+  const storyline = PLAYER_STORYLINES[normPlayerName(bestPlayerOverall.player)];
+  if(storyline) text += ` ${storyline}`;
+  return text;
 }
 
 function buildScoutingReport(owner, ownerPicks, g, strengthData, projRecord){
@@ -2904,7 +3212,11 @@ function buildScoutingReport(owner, ownerPicks, g, strengthData, projRecord){
       `${bestValue.player} falling to Round ${bestValue.round} was the steal of the draft for this team — that's ${Math.round(bestValue.delta)} picks of pure profit.`,
       `Getting ${bestValue.player} that late (Round ${bestValue.round}) is a quiet coup that should pay off all year.`,
     ], owner+"v");
+    const bvStoryline = PLAYER_STORYLINES[normPlayerName(bestValue.player)];
+    if(bvStoryline) s2 += ` ${bvStoryline}`;
   }
+
+  const s_keeper = buildKeeperNote(owner, ownerPicks);
 
   let s3;
   if(worstReach && worstReach.delta < -5){
@@ -2928,10 +3240,33 @@ function buildScoutingReport(owner, ownerPicks, g, strengthData, projRecord){
     ], owner+"s");
   }
 
-  return [s1, s2, s3, s4, s5].filter(Boolean).join(" ");
+  return [s1, s2, s_keeper, s3, s4, s5].filter(Boolean).join(" ");
 }
 
-function renderDraftScorecard(owner, picks, grades, strengthData, projRecords){
+function posGroupRankingsHtml(owner, posRankings){
+  const rows = POSITION_GROUP_CATEGORIES.map(cat => {
+    const ranking = posRankings.rankings[cat] || [];
+    const idx = ranking.findIndex(([o]) => o === owner);
+    if(idx === -1) return "";
+    const rank = idx + 1;
+    const total = ranking.length;
+    const entry = ranking[idx][1]; // {value, players}
+    const color = rankColor(rank, total);
+    const playerLabel = entry.players.join(" + ");
+    return `<div class="posrank-row">
+      <span class="posrank-pos">${cat}</span>
+      <span class="posrank-players">${playerLabel}</span>
+      <span class="posrank-avg">${entry.value.toFixed(1)} pts/gm</span>
+      <span class="posrank-badge" style="background:${color};">${ordYear(rank)} of ${total}</span>
+    </div>`;
+  }).filter(Boolean).join("");
+  return `
+    <p class="sub" style="margin:16px 0 8px;">Position Group Rankings</p>
+    <p style="font-size:11px; color:var(--ink-dim); margin:0 0 10px;">RB/WR = combined top 2 (that's what starts) · QB/TE/K/DEF = the one that starts · FLEX = the best leftover RB/WR/TE</p>
+    <div class="posrank-list">${rows}</div>`;
+}
+
+function renderDraftScorecard(owner, picks, grades, strengthData, projRecords, posRankings){
   const panel = document.getElementById("draftScorecardPanel");
   document.querySelectorAll(".draft-col-header.active-tab").forEach(el => el.classList.remove("active-tab"));
   if(draftScorecardOpenOwner === owner){
@@ -2980,7 +3315,7 @@ function renderDraftScorecard(owner, picks, grades, strengthData, projRecords){
   panel.innerHTML = `
     <div class="team-block">
       <h3>${ownerDisplayName(owner)} <span class="handle">@${owner}</span>${g?` <span class="draft-grade ${gradeCls}" style="display:inline-flex; margin-left:8px; vertical-align:middle;">${g.grade}</span>`:""}</h3>
-      ${g?`<p class="sub">Rank ${g.rank} of ${Object.keys(grades).length} this draft · value score ${g.rawValue.toFixed(1)} · composition penalty -${g.compositionPenalty.toFixed(1)}${g.projectedWins!=null?` · projected record ${g.projectedWins}-${REGULAR_SEASON_WEEKS-g.projectedWins} (light cross-check only, not baked into the value score)`:""}${g.holes.length?` · thin at ${g.holes.map(h=>h.pos).join('/')}`:""}</p>`:""}
+      ${g?`<p class="sub">Rank ${g.rank} of ${Object.keys(grades).length} this draft · value score ${g.rawValue.toFixed(1)} · composition penalty -${g.compositionPenalty.toFixed(1)}${g.qualityWeeklyPts!=null?` · roster quality ${g.qualityWeeklyPts.toFixed(1)} pts/wk vs. league avg ${g.leagueAvgWeeklyPts.toFixed(1)} (value and quality weighted equally)`:""}${g.holes.length?` · thin at ${g.holes.map(h=>h.pos).join('/')}`:""}</p>`:""}
       ${projRecord ? `
       <div class="scouting-report">
         <div class="scouting-stats">
@@ -2989,6 +3324,7 @@ function renderDraftScorecard(owner, picks, grades, strengthData, projRecords){
           <div class="scouting-stat"><div class="scouting-stat-label">Proj. Pts/Wk</div><div class="scouting-stat-value">${projRecord.weeklyPts.toFixed(1)}</div></div>
         </div>
         <p class="scouting-text">${scoutingText}</p>
+        ${notablePlayersHtml(owner, ownerPicks)}
       </div>` : ""}
       <div class="scorecard-grid">
         <div>
@@ -3001,6 +3337,7 @@ function renderDraftScorecard(owner, picks, grades, strengthData, projRecords){
         <div>
           <p class="sub" style="margin:0 0 8px;">Positional Strength (vs. league)</p>
           <div style="position:relative; height:300px;"><canvas id="scorecardRadar"></canvas></div>
+          ${posRankings ? posGroupRankingsHtml(owner, posRankings) : ""}
         </div>
       </div>
     </div>`;
@@ -3075,9 +3412,10 @@ async function renderDraftBoardBody(year){
     const headerCells = slots.map(owner => {
       const g = grades && grades[owner];
       const gradeCls = g ? "grade-" + g.grade.replace("+","plus").replace("-","minus") : "";
-      return `<div class="draft-col-header${clickable?' clickable':''}" data-owner="${owner}">${ownerDisplayName(owner)}${g ? `<span class="draft-grade ${gradeCls}" title="Value score ${g.rawValue.toFixed(1)}, composition penalty -${g.compositionPenalty.toFixed(1)}${g.projectedWins!=null?`, projected ${g.projectedWins}-${REGULAR_SEASON_WEEKS-g.projectedWins}`:''}${g.holes.length?', roster holes: '+g.holes.map(h=>h.pos).join('/'):''}">${g.grade}</span>` : ""}</div>`;
+      return `<div class="draft-col-header${clickable?' clickable':''}" data-owner="${owner}">${ownerDisplayName(owner)}${g ? `<span class="draft-grade ${gradeCls}" title="Value score ${g.rawValue.toFixed(1)}, composition penalty -${g.compositionPenalty.toFixed(1)}${g.qualityWeeklyPts!=null?`, roster quality ${g.qualityWeeklyPts.toFixed(1)} pts/wk (league avg ${g.leagueAvgWeeklyPts.toFixed(1)})`:''}${g.holes.length?', roster holes: '+g.holes.map(h=>h.pos).join('/'):''}">${g.grade}</span>` : ""}</div>`;
     }).join("");
     const strengthData = grades ? computePositionalStrength(picks, slots) : null;
+    const posRankings = grades ? computePositionGroupRankings(picks, slots) : null;
 
     let rowsHtml = "";
     for(let r=1; r<=maxRound; r++){
@@ -3106,7 +3444,6 @@ async function renderDraftBoardBody(year){
       </div>
       <div class="draft-legend">
         ${Object.entries(POS_COLORS).map(([pos,color]) => `<span class="draft-legend-item"><span class="draft-legend-swatch" style="background:${color};"></span>${pos}</span>`).join("")}
-        <span class="draft-legend-item"><span class="draft-legend-swatch" style="background:#3A4B5C;"></span>Unknown</span>
         <span class="draft-legend-item"><span class="draft-legend-swatch" style="border:2px solid var(--gold); background:transparent;"></span>Keeper (K)</span>
       </div>`;
 
@@ -3131,7 +3468,7 @@ async function renderDraftBoardBody(year){
       draftScorecardOpenOwner = null;
       document.querySelectorAll(".draft-col-header.clickable").forEach(el => {
         el.addEventListener("click", () => {
-          renderDraftScorecard(el.dataset.owner, picks, grades, strengthData, projRecords);
+          renderDraftScorecard(el.dataset.owner, picks, grades, strengthData, projRecords, posRankings);
         });
       });
     }
